@@ -1,0 +1,42 @@
+{
+  "spec_id": "caldawarrior-2026-02-26-001",
+  "title": "caldawarrior",
+  "generated": "2026-02-26T11:33:37.612663Z",
+  "last_updated": "2026-02-26T11:33:37.612663Z",
+  "metadata": {
+    "description": "",
+    "mission": "",
+    "objectives": [],
+    "assumptions": [],
+    "success_criteria": [],
+    "constraints": [],
+    "risks": [],
+    "open_questions": [],
+    "plan_path": ".plans/caldawarrior-2026-02-23.md",
+    "plan_review_path": ".plan-reviews/caldawarrior-2026-02-23-review.md"
+  },
+  "progress_percentage": 0,
+  "status": "pending",
+  "current_phase": null,
+  "hierarchy": {
+    "spec-root": {
+      "type": "spec",
+      "title": "caldawarrior",
+      "status": "pending",
+      "parent": null,
+      "children": [],
+      "total_tasks": 0,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    }
+  },
+  "journal": []
+}

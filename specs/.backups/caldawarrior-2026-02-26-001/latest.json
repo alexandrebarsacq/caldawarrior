@@ -1,0 +1,965 @@
+{
+  "spec_id": "caldawarrior-2026-02-26-001",
+  "title": "caldawarrior",
+  "generated": "2026-02-26T11:33:37.612663Z",
+  "last_updated": "2026-02-26T11:37:00.618866Z",
+  "metadata": {
+    "description": "",
+    "mission": "",
+    "objectives": [],
+    "assumptions": [],
+    "success_criteria": [],
+    "constraints": [],
+    "risks": [],
+    "open_questions": [],
+    "plan_path": ".plans/caldawarrior-2026-02-23.md",
+    "plan_review_path": ".plan-reviews/caldawarrior-2026-02-23-review.md"
+  },
+  "progress_percentage": 0,
+  "status": "pending",
+  "current_phase": null,
+  "hierarchy": {
+    "spec-root": {
+      "type": "spec",
+      "title": "caldawarrior",
+      "status": "pending",
+      "parent": null,
+      "children": [
+        "phase-1",
+        "phase-2",
+        "phase-3",
+        "phase-4",
+        "phase-5",
+        "phase-6",
+        "phase-7"
+      ],
+      "total_tasks": 30,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-1": {
+      "type": "phase",
+      "title": "Phase 0: Scaffolding & Empirical Research",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-1-1",
+        "task-1-2",
+        "task-1-3",
+        "verify-1-1"
+      ],
+      "total_tasks": 4,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Initialize Rust project, select dependencies via ADRs, and run empirical research on TaskWarrior CLI behavior before any production code is written."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-2"
+        ],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-1-1": {
+      "type": "task",
+      "title": "Initialize Rust project",
+      "status": "pending",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "cargo new --lib caldawarrior with [[bin]] entry. Add dependency candidates: serde/serde_json, reqwest (blocking+tls), chrono/chrono-tz, uuid, thiserror, anyhow, clap, icalendar crate (evaluated in Phase 0). Commit Cargo.lock.",
+        "file_path": "Cargo.toml",
+        "acceptance_criteria": [
+          "[[bin]] entry sets binary name to caldawarrior",
+          "Cargo.lock committed to version control",
+          "cargo build succeeds with dependency candidates added"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-1-2": {
+      "type": "task",
+      "title": "Set up Docker/Radicale for empirical research",
+      "status": "pending",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create tests/integration/docker-compose.yml with Radicale service. Reused by Phase 5 (not duplicated). Verify VTODO PUT/REPORT round-trip with curl.",
+        "file_path": "tests/integration/docker-compose.yml",
+        "acceptance_criteria": [
+          "docker-compose up starts Radicale at http://localhost:5232",
+          "VTODO PUT and REPORT round-trip verified with curl"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-1-3": {
+      "type": "task",
+      "title": "Empirical research: task import and TW CLI behavior",
+      "status": "pending",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Write shell scripts against local TW + Radicale to verify 9 behavioral items: (1) does task import mutate modified? (2) task import on deleted UUID; (3) task import on pending UUID \u2014 duplicate or update? (4) fresh UUID4 import; (5) status.not:purged validity; (6) expired wait date in export; (7) caldavuid: trailing colon clears UDA; (8) task delete idempotency; (9) task modify field: for all sync fields + status transitions. Document in ADRs including docs/adr/tw-field-clearing.md and docs/adr/loop-prevention.md.",
+        "acceptance_criteria": [
+          "All 9 items documented in ADRs",
+          "docs/adr/loop-prevention.md covers two-layer design with worked examples",
+          "docs/adr/tw-field-clearing.md covers all field-clear and status-transition results",
+          "Phase 0 findings gate Phase 3 LWW implementation decisions"
+        ],
+        "task_category": "research"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-1-1": {
+      "type": "verify",
+      "title": "Phase 0 fidelity review",
+      "status": "pending",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Verify all Phase 0 deliverables are complete",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-2": {
+      "type": "phase",
+      "title": "Phase 1: Core Types, Config, Adapters, iCalendar",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-2-1",
+        "task-2-2",
+        "task-2-3",
+        "task-2-4",
+        "task-2-5",
+        "task-2-6",
+        "verify-2-1"
+      ],
+      "total_tasks": 7,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Define all shared domain types, error hierarchy, config, TaskWarrior adapter, CalDAV adapter with CalDavClient trait, and iCalendar VTODO serializer."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-3"
+        ],
+        "blocked_by": [
+          "phase-1"
+        ],
+        "depends": []
+      }
+    },
+    "task-2-1": {
+      "type": "task",
+      "title": "Define shared domain types",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/types.rs with all shared domain types: TWTask, VTODO, FetchedVTODO, IREntry, PlannedOp, SyncResult, UpdateReason (5 variants), SkipReason (8 variants including DeletedBeforeSync, AlreadyDeleted, CalDavDeletedTwTerminal), Side, Warning, CyclicEntry. All Option<T> fields carry #[serde(default)] and #[serde(skip_serializing_if)]. Pre-assign tw_uuid for CalDAV-only NEEDS-ACTION entries in build_ir().",
+        "file_path": "src/types.rs",
+        "acceptance_criteria": [
+          "All types defined with correct serde rename fields matching TW JSON export",
+          "All Option<T> fields carry #[serde(default)] and #[serde(skip_serializing_if='Option::is_none')]",
+          "depends: Vec<Uuid> carries #[serde(default)] and skip_serializing_if='Vec::is_empty'",
+          "UpdateReason has 5 variants: LwwTwWins, LwwCalDavWins, TwDeletedMarkCancelled, TwCompletedMarkCompleted, CalDavCompletedUpdateTw",
+          "SkipReason has 8 variants: Cancelled, Completed, Recurring, Cyclic, Identical (8-field comment), DeletedBeforeSync, AlreadyDeleted, CalDavDeletedTwTerminal",
+          "SyncResult includes planned_ops, warnings, errors, written_tw, written_caldav, skipped fields",
+          "Unit tests confirm serde round-trip for TWTask with all optional fields absent"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-2": {
+      "type": "task",
+      "title": "Define error type hierarchy",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/error.rs with CaldaWarriorError enum using thiserror: Config(String), Tw{code,stderr}, CalDav{status,body}, Auth{server_url} (human-readable 401 message), IcalParse, SyncConflict, EtagConflict{refetched_vtodo}.",
+        "file_path": "src/error.rs",
+        "acceptance_criteria": [
+          "All variants have human-readable Display via thiserror",
+          "Auth variant message directs user to check credentials",
+          "EtagConflict carries refetched FetchedVTODO for orchestrator retry",
+          "Unit tests confirm variant construction"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-3": {
+      "type": "task",
+      "title": "Define configuration module",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/config.rs. Parse TOML from path resolved as: (1) --config flag, (2) CALDAWARRIOR_CONFIG env, (3) ~/.config/caldawarrior/config.toml. Fields: server_url, username, password (CALDAWARRIOR_PASSWORD env override), completed_cutoff_days (default 90), allow_insecure_tls (default false), caldav_timeout_seconds (default 30), [[calendar]] array with project->URL mapping including default entry. Startup validation: 0600 permission warn, duplicate calendar URL error.",
+        "file_path": "src/config.rs",
+        "acceptance_criteria": [
+          "Config path resolution order: --config flag -> CALDAWARRIOR_CONFIG env -> default path",
+          "password overridden by CALDAWARRIOR_PASSWORD env",
+          "Defaults: completed_cutoff_days=90, allow_insecure_tls=false, caldav_timeout_seconds=30",
+          "Duplicate calendar URLs (excluding default) emit CaldaWarriorError::Config",
+          "Permissions >0600 emit [WARN] to stderr (non-fatal)",
+          "Unit tests cover happy path, missing fields, defaults, duplicate URL, permission warning"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-4": {
+      "type": "task",
+      "title": "Implement TaskWarrior adapter",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/tw_adapter.rs. TaskRunner trait with export(), import(), modify() methods. RealTaskRunner uses std::process::Command (never shell interpolation). TwAdapter: list_all() issues two export calls merged with max-modified deduplication. create(task) always uses task import for fresh UUID4. update(task) always uses single task modify invocation. delete(uuid) runs two sequential commands. UDA registration in TwAdapter::new() before any export/import.",
+        "file_path": "src/tw_adapter.rs",
+        "acceptance_criteria": [
+          "TaskRunner trait enables MockTaskRunner injection",
+          "list_all() two-call merge: same UUID -> retain higher modified timestamp",
+          "create() -> task import (only for CalDAV-only CREATE branch)",
+          "update() -> single task modify with all changed fields; depends as comma-separated UUIDs",
+          "create() is the ONLY path calling task import; update() NEVER calls task import",
+          "UDA registration in TwAdapter::new() before any other call",
+          "Unit test confirms registration runs before list_all()",
+          "Unit tests verify command argument construction"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-5": {
+      "type": "task",
+      "title": "Implement CalDAV adapter with CalDavClient trait",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/caldav_adapter.rs. Define CalDavClient trait with list_vtodos(), put_vtodo(), delete_vtodo(). RealCalDavClient implements trait using reqwest blocking with timeout from config and allow_insecure_tls support. apply_writeback() and run_sync() accept &dyn CalDavClient. HTTP 401 -> Auth error, TLS errors -> CalDav error with allow_insecure_tls guidance, 412 -> EtagConflict with fresh fetch.",
+        "file_path": "src/caldav_adapter.rs",
+        "acceptance_criteria": [
+          "CalDavClient trait defined; RealCalDavClient and MockCalDavClient available",
+          "apply_writeback() and run_sync() accept dyn CalDavClient",
+          "If-Match on PUT/DELETE when etag present; If-None-Match: * on PUT when absent",
+          "HTTP 401 -> CaldaWarriorError::Auth; TLS errors -> CalDav with allow_insecure_tls guidance",
+          "HTTP 412 -> EtagConflict with refetched VTODO (no internal retry)",
+          "reqwest Client configured with timeout from caldav_timeout_seconds",
+          "Unit tests use MockCalDavClient (no HTTP server required)"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-6": {
+      "type": "task",
+      "title": "Implement iCalendar VTODO serializer/deserializer",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/ical.rs. Parse iCalendar into VTODO struct and serialize back. Support all fields. RFC 5545 TEXT escaping and line folding. TZID normalization via chrono-tz. VCALENDAR wrapper on serialize/parse.",
+        "file_path": "src/ical.rs",
+        "acceptance_criteria": [
+          "to_icalendar_string() produces valid VCALENDAR with DTSTAMP set to current UTC",
+          "from_icalendar_string() extracts VTODO from VCALENDAR wrapper",
+          "RFC 5545 TEXT escaping applied to SUMMARY and DESCRIPTION",
+          "Line folding at 75 octets on serialize; unfold on parse",
+          "TZID timestamps normalized to UTC via chrono-tz",
+          "RELTYPE parsed into RelType::DependsOn or RelType::Other(s)",
+          "Unknown properties preserved as Vec<IcalProp> on round-trip",
+          "Unit tests cover all target fields, TEXT escaping, line folding, TZID, round-trip"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-2-1": {
+      "type": "verify",
+      "title": "Phase 1 fidelity review",
+      "status": "pending",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Compare Phase 1 implementation against spec: adapters, config, iCalendar serializer, error types",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-3": {
+      "type": "phase",
+      "title": "Phase 2: Mapper Layer & IR Builder",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-3-1",
+        "task-3-2",
+        "task-3-3",
+        "task-3-4",
+        "verify-3-1"
+      ],
+      "total_tasks": 5,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Implement status mapper (TW->CalDAV and CalDAV->TW), field mapper, IR builder, and dependency resolver."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-4"
+        ],
+        "blocked_by": [
+          "phase-2"
+        ],
+        "depends": []
+      }
+    },
+    "task-3-1": {
+      "type": "task",
+      "title": "Implement status mapper (TW -> CalDAV)",
+      "status": "pending",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "In src/mapper/status.rs, implement tw_to_caldav_status() returning TwToCalDavStatus enum: NeedsAction, NeedsActionWithWait(DateTime), Completed(DateTime), TwStateDeleted (signals TW deleted state; dispatch is CalDavCancelled for both-exist, AlreadyDeleted for TW-only), Skip(Warning). NOTE: TwStateDeleted is a TW state descriptor, NOT a CalDAV hard-delete instruction.",
+        "file_path": "src/mapper/status.rs",
+        "acceptance_criteria": [
+          "All 5 TW statuses produce correct enum variant",
+          "TwStateDeleted returned for deleted (not a hard-delete signal)",
+          "recurring returns Skip(RecurringSkipped) (no panic)",
+          "Unit tests cover all 5 branches"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-2": {
+      "type": "task",
+      "title": "Implement field mapper (bidirectional)",
+      "status": "pending",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "In src/mapper/fields.rs, implement tw_to_caldav_fields() and caldav_to_tw_fields(). Map: description<->DESCRIPTION, due<->DUE, scheduled<->DTSTART, wait<->X-TASKWARRIOR-WAIT (with expired-wait collapse per Phase 0 finding #6), depends<->RELATED-TO[RELTYPE=DEPENDS-ON].",
+        "file_path": "src/mapper/fields.rs",
+        "acceptance_criteria": [
+          "All bidirectional field mappings implemented",
+          "Expired wait handling follows Phase 0 finding #6",
+          "depends<->RELATED-TO round-trip preserves all dependency edges",
+          "Unit tests cover all field mappings including None/absent cases"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-3": {
+      "type": "task",
+      "title": "Implement IR builder",
+      "status": "pending",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "In src/ir.rs, implement build_ir(tw_tasks, vtodos_by_calendar, config: &Config). Three-way TW classification: caldavuid=None -> new TW-only (assign fresh caldavuid UUID4); caldavuid set + match -> paired; caldavuid set + no match -> orphaned. CalDAV-only NEEDS-ACTION entries get fresh tw_uuid pre-assigned in build_ir(). TW-only calendar_url resolved from config at construction time. UnmappedProject warning emitted here.",
+        "file_path": "src/ir.rs",
+        "acceptance_criteria": [
+          "TW-only new entries: fresh UUID4 assigned as caldavuid",
+          "CalDAV-only NEEDS-ACTION entries: fresh UUID4 pre-assigned as tw_uuid before Step 3",
+          "CalDAV-only CANCELLED/COMPLETED: tw_uuid remains None",
+          "TW-only calendar_url resolved from config at IR construction (not at writeback)",
+          "UnmappedProject warning emitted when no config entry matches project",
+          "Orphaned caldavuid entries preserved (not re-assigned)",
+          "RRULE VTODOs skipped with RecurringCalDavSkipped warning",
+          "dirty_* and cyclic always false after construction",
+          "Unit tests cover all classification cases including pre-assigned tw_uuid"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-4": {
+      "type": "task",
+      "title": "Implement dependency resolver (Step 2)",
+      "status": "pending",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "In src/sync/deps.rs, implement resolve_dependencies() over Vec<IREntry>. Build HashMap index. DFS cycle detection. Populate resolved_depends with CalDAV UIDs. Emit UnresolvableDependency warnings. Mark cyclic entries.",
+        "file_path": "src/sync/deps.rs",
+        "acceptance_criteria": [
+          "resolved_depends populated with CalDAV UID strings",
+          "Cyclic entries marked with cyclic=true and CyclicEntry warning",
+          "UnresolvableDependency warning for UIDs not found in IR",
+          "HashMap index used for O(1) DFS lookups",
+          "Unit tests cover: simple deps, cycle detection, unresolvable UID"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-3-1": {
+      "type": "verify",
+      "title": "Phase 2 fidelity review",
+      "status": "pending",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Compare Phase 2 implementation against spec: status mapper, field mapper, IR builder, dependency resolver",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-4": {
+      "type": "phase",
+      "title": "Phase 3: Sync Algorithm",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-4-1",
+        "task-4-2",
+        "task-4-3",
+        "verify-4-1"
+      ],
+      "total_tasks": 4,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Implement LWW conflict resolver, write-back decision tree (apply_writeback with ETag retry ownership), and full sync orchestrator."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-5"
+        ],
+        "blocked_by": [
+          "phase-3"
+        ],
+        "depends": []
+      }
+    },
+    "task-4-1": {
+      "type": "task",
+      "title": "Implement LWW conflict resolver",
+      "status": "pending",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "In src/sync/lww.rs, implement resolve_lww(). Compare TW modified vs CalDAV LAST-MODIFIED (fallback to DTSTAMP for read/LWW comparison only; DTSTAMP never used on write path). TW wins if TW.modified > LAST-SYNC; CalDAV wins if LAST-MODIFIED > TW.modified. Loop prevention Layer 1: LAST-SYNC = TW.modified at CalDAV write time. Layer 2: 8-field content-identical check (SUMMARY,STATUS,DUE,DTSTART,COMPLETED,DESCRIPTION,RELATED-TO[DEPENDS-ON],X-TASKWARRIOR-WAIT) after normalization.",
+        "file_path": "src/sync/lww.rs",
+        "acceptance_criteria": [
+          "LWW uses TW.modified vs CalDAV LAST-MODIFIED (DTSTAMP fallback for comparison only, never on write path)",
+          "TW-wins when TW.modified > LAST-SYNC (Layer 1)",
+          "Layer 2: 8-field content-identical check with normalization contract: timestamps at second precision, TEXT unescape for SUMMARY/DESCRIPTION, RELATED-TO sorted by UID, STATUS via enum, COMPLETED at second precision",
+          "X-CALDAWARRIOR-LAST-SYNC set to TW.modified on every CalDAV write",
+          "Regression test: sync once (CalDAV wins), sync again -> written_caldav==0 && written_tw==0",
+          "Unit tests cover TW-wins, CalDAV-wins, identical content, DTSTAMP fallback"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-4-2": {
+      "type": "task",
+      "title": "Implement write-back decision tree",
+      "status": "pending",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/sync/writeback.rs. Implement apply_writeback(ir: &mut Vec<IREntry>, tw: &TwAdapter, caldav: &dyn CalDavClient, dry_run: bool). Owns ETag retry logic exclusively (max 3 attempts per entry, re-run full decision tree with refetched VTODO on EtagConflict). Full decision tree covering all TW-only, CalDAV-only, and both-exist branches. tw.create() for CalDAV-only NEEDS-ACTION; tw.update() for all existing-task updates. TW depends written by reverse-mapping resolved_depends through IR index.",
+        "file_path": "src/sync/writeback.rs",
+        "acceptance_criteria": [
+          "apply_writeback() takes &mut Vec<IREntry>; ETag retry owned exclusively here (not in run_sync)",
+          "CalDAV-only NEEDS-ACTION -> tw.create() using pre-assigned IREntry.tw_uuid (NEVER tw.update())",
+          "create() is the ONLY code path calling task import; update() NEVER calls task import",
+          "All SkipReason variants used correctly per decision tree",
+          "8-field identical check with normalization applied",
+          "TW depends reverse-mapped from resolved_depends through IR HashMap index",
+          "On EtagConflict: re-run full decision tree with refetched VTODO, retry up to 3 times",
+          "SyncResult.errors accumulates SyncConflict after retry exhaustion; sync continues",
+          "Unit tests cover all branches including MockCalDavClient injection"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-4-3": {
+      "type": "task",
+      "title": "Implement full sync orchestrator",
+      "status": "pending",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/sync/mod.rs. run_sync() calls build_ir(), resolve_dependencies(), apply_writeback() in order. ETag retry owned by apply_writeback(); run_sync() propagates SyncResult without re-implementing retry.",
+        "file_path": "src/sync/mod.rs",
+        "acceptance_criteria": [
+          "Three steps run in order: build_ir -> deps -> apply_writeback",
+          "ETag retry logic NOT duplicated here; run_sync() propagates apply_writeback() result",
+          "All warnings from all three steps collected in SyncResult",
+          "Dry-run passes through correctly",
+          "Integration test (mock adapters) covers full three-step flow"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-4-1": {
+      "type": "verify",
+      "title": "Phase 3 fidelity review",
+      "status": "pending",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Compare Phase 3 implementation against spec: sync algorithm, LWW, decision tree, orchestrator",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-5": {
+      "type": "phase",
+      "title": "Phase 4: CLI & Output",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-5-1",
+        "task-5-2",
+        "verify-5-1"
+      ],
+      "total_tasks": 3,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Implement the caldawarrior CLI binary using clap, sync output formatter, and dry-run display."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-6"
+        ],
+        "blocked_by": [
+          "phase-4"
+        ],
+        "depends": []
+      }
+    },
+    "task-5-1": {
+      "type": "task",
+      "title": "Implement CLI binary",
+      "status": "pending",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/main.rs with clap-derived CLI. Single sync subcommand with --dry-run and --config flags. #[command(version)] for --version. Config path resolution passed to config module. Calls run_sync() and formats output.",
+        "file_path": "src/main.rs",
+        "acceptance_criteria": [
+          "caldawarrior sync --dry-run runs sync in dry-run mode",
+          "caldawarrior sync --config <path> overrides default config path",
+          "caldawarrior --version prints crate version",
+          "caldawarrior --help shows subcommand help",
+          "Non-zero exit code on any CaldaWarriorError (anyhow at CLI boundary)",
+          "Unit tests cover argument parsing"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-5-2": {
+      "type": "task",
+      "title": "Implement sync output formatter",
+      "status": "pending",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create src/output.rs. Format SyncResult for human-readable terminal output. Dry-run shows [DRY-RUN] prefix with all PlannedOp entries. Live run shows written counts. Warnings printed to stderr.",
+        "file_path": "src/output.rs",
+        "acceptance_criteria": [
+          "Dry-run output shows [DRY-RUN] [CREATE/UPDATE/DELETE/SKIP] per PlannedOp with summary",
+          "Live output shows: Synced: N created, M updated in CalDAV; P created, Q updated in TW",
+          "Warnings printed to stderr with [WARN] prefix",
+          "Errors in SyncResult.errors printed to stderr before exit",
+          "Unit tests cover dry-run and live formatting"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-5-1": {
+      "type": "verify",
+      "title": "Phase 4 fidelity review",
+      "status": "pending",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Compare Phase 4 implementation against spec: CLI, output formatter",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-6": {
+      "type": "phase",
+      "title": "Phase 5: Testing",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-6-1",
+        "task-6-2",
+        "task-6-3",
+        "task-6-4",
+        "verify-6-1"
+      ],
+      "total_tasks": 5,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Add Docker integration test harness (Rust side only; docker-compose from Phase 0) and six end-to-end scenarios against real Radicale."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-7"
+        ],
+        "blocked_by": [
+          "phase-5"
+        ],
+        "depends": []
+      }
+    },
+    "task-6-1": {
+      "type": "task",
+      "title": "Implement Docker integration test harness",
+      "status": "pending",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create tests/integration/mod.rs. Use existing tests/integration/docker-compose.yml from Phase 0 (not duplicated). Rust test infrastructure: start/stop Radicale container, configure caldawarrior, reset TW database and CalDAV calendars between tests.",
+        "file_path": "tests/integration/mod.rs",
+        "acceptance_criteria": [
+          "Rust harness starts/stops Radicale via Phase 0 docker-compose (not recreating it)",
+          "Test harness creates/deletes CalDAV calendars and TW tasks programmatically",
+          "State fully reset between test cases (TW database + CalDAV calendars wiped)"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-2": {
+      "type": "task",
+      "title": "Integration test: first sync TW to CalDAV",
+      "status": "pending",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "E2E: create TW tasks, run sync, verify VTODOs created in Radicale with correct fields.",
+        "file_path": "tests/integration/test_first_sync.rs",
+        "acceptance_criteria": [
+          "TW tasks appear as VTODOs in CalDAV after first sync",
+          "caldavuid UDA set on TW tasks after sync",
+          "project -> calendar URL mapping applied correctly"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-3": {
+      "type": "task",
+      "title": "Integration test: bidirectional LWW and loop prevention",
+      "status": "pending",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "E2E: modify task in TW and CalDAV, verify LWW resolves correctly. Run sync twice, verify zero writes on second run (stable-point test).",
+        "file_path": "tests/integration/test_lww.rs",
+        "acceptance_criteria": [
+          "LWW TW-wins and CalDAV-wins both verified",
+          "Second sync after CalDAV-wins produces written_caldav==0 && written_tw==0 (loop prevention stable-point)",
+          "ETag conflict scenario tested"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-4": {
+      "type": "task",
+      "title": "Integration tests: status sync, dependency sync, orphaned UID, large dataset",
+      "status": "pending",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Three additional E2E scenarios: (1) status transitions both ways; (2) dependency edges synced bidirectionally; (3) orphaned caldavuid cleanup; (4) first-sync performance with 100+ tasks.",
+        "file_path": "tests/integration/test_scenarios.rs",
+        "acceptance_criteria": [
+          "CalDAV COMPLETED syncs back to TW as completed task",
+          "TW depends synced to CalDAV RELATED-TO and back",
+          "Orphaned caldavuid causes TW task deletion (not CalDAV re-create)",
+          "100-task first sync completes without duplication or data loss"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-6-1": {
+      "type": "verify",
+      "title": "Phase 5 fidelity review",
+      "status": "pending",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Compare Phase 5 implementation against spec: integration test harness and all 6 E2E scenarios. Run cargo tarpaulin --branch; verify coverage >= 90% for core modules.",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-7": {
+      "type": "phase",
+      "title": "Phase 6: Hardening & Docs",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "task-7-1",
+        "verify-7-1"
+      ],
+      "total_tasks": 2,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Write README, configuration reference, and address all 14 v1 known limitations in documentation. Final hardening pass."
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [
+          "phase-6"
+        ],
+        "depends": []
+      }
+    },
+    "task-7-1": {
+      "type": "task",
+      "title": "Write README and configuration reference",
+      "status": "pending",
+      "parent": "phase-7",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Create README.md and docs/configuration.md. README: installation, quick-start (5 steps), all 14 v1 known limitations with workarounds. Configuration reference: all config fields, types, defaults, examples. Security note: 0600 permissions, CALDAWARRIOR_PASSWORD env var.",
+        "file_path": "README.md",
+        "acceptance_criteria": [
+          "Quick-start covers: install, configure (with 0600 security note), register UDA, first sync, dry-run",
+          "All 14 v1 known limitations listed by name with workarounds",
+          "Configuration reference documents all fields including allow_insecure_tls and caldav_timeout_seconds",
+          "docs/configuration.md covers CALDAWARRIOR_PASSWORD and CALDAWARRIOR_CONFIG env vars",
+          "v2 roadmap section covers: sync-token, keyring, DIGEST auth, multi-server, CalDAV CANCEL recovery"
+        ],
+        "task_category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-7-1": {
+      "type": "verify",
+      "title": "Phase 6 fidelity review",
+      "status": "pending",
+      "parent": "phase-7",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Compare Phase 6 implementation against spec: README, docs, 14 known limitations documented",
+        "verification_type": "fidelity"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    }
+  },
+  "journal": []
+}
