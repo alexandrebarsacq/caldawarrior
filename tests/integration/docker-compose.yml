@@ -1,0 +1,12 @@
+services:
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    ports:
+      - "5232:5232"
+    volumes:
+      - ./radicale.config:/config/config:ro
+      - radicale-data:/data
+    restart: unless-stopped
+
+volumes:
+  radicale-data:
