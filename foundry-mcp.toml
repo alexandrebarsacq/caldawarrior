@@ -26,8 +26,8 @@ auto_compact = true
 [implement]
 # Default flags for /implement command (can be overridden via CLI flags)
 # NOTE: Use [workflow].mode for autonomous execution control.
-delegate = false  # --delegate: use subagent(s) for implementation
-parallel = false  # --parallel: run subagents concurrently (implies delegate)
+delegate = true  # --delegate: use subagent(s) for implementation
+parallel = true  # --parallel: run subagents concurrently (implies delegate)
 
 [consultation]
 # Auto-generated based on detected providers
@@ -73,3 +73,12 @@ default_review_type = "full"
 min_models = 2
 timeout_override = 600.0
 default_review_type = "full"
+
+[test]
+# Auto-configured for Rust project
+default_runner = "cargo test"
+
+[git]
+# Git workflow configuration
+enabled = true
+commit_cadence = "task"

@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod types;
+pub mod error;
+pub mod config;
+pub mod tw_adapter;
+pub mod caldav_adapter;
+pub mod ical;
+pub mod mapper;
+pub mod sync;
+pub mod ir;
+pub mod output;

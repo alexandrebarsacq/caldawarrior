@@ -1,10 +1,17 @@
 services:
   radicale:
     image: tomsquest/docker-radicale:latest
+    init: true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 50
     ports:
-      - "5232:5232"
+      - "5233:5232"
     volumes:
       - ./radicale.config:/config/config:ro
+      - ./htpasswd:/config/htpasswd:ro
       - radicale-data:/data
     restart: unless-stopped
 

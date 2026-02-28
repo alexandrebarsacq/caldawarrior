@@ -2,7 +2,7 @@
   "spec_id": "caldawarrior-2026-02-26-001",
   "title": "caldawarrior",
   "generated": "2026-02-26T11:33:37.612663Z",
-  "last_updated": "2026-02-28T14:52:21.543354Z",
+  "last_updated": "2026-02-28T14:47:34.598547Z",
   "metadata": {
     "description": "",
     "mission": "Build a bidirectional CLI sync tool between TaskWarrior and CalDAV VTODO items in Rust, using LWW conflict resolution, a no-database design keyed on a TW UDA, and a two-layer loop-prevention mechanism.",
@@ -15,9 +15,9 @@
     "plan_path": ".plans/caldawarrior-2026-02-23.md",
     "plan_review_path": ".plan-reviews/caldawarrior-2026-02-23-review.md"
   },
-  "progress_percentage": 93,
+  "progress_percentage": 90,
   "status": "in_progress",
-  "current_phase": "phase-7",
+  "current_phase": "phase-6",
   "hierarchy": {
     "spec-root": {
       "type": "spec",
@@ -34,7 +34,7 @@
         "phase-7"
       ],
       "total_tasks": 30,
-      "completed_tasks": 28,
+      "completed_tasks": 27,
       "metadata": {
         "purpose": "",
         "category": "implementation"
@@ -878,7 +878,7 @@
     "phase-6": {
       "type": "phase",
       "title": "Phase 5: Testing",
-      "status": "completed",
+      "status": "in_progress",
       "parent": "spec-root",
       "children": [
         "task-6-1",
@@ -888,12 +888,10 @@
         "verify-6-1"
       ],
       "total_tasks": 5,
-      "completed_tasks": 5,
+      "completed_tasks": 4,
       "metadata": {
         "purpose": "",
-        "description": "Add Docker integration test harness (Rust side only; docker-compose from Phase 0) and six end-to-end scenarios against real Radicale.",
-        "needs_journaling": true,
-        "completed_at": "2026-02-28T14:52:21.543205Z"
+        "description": "Add Docker integration test harness (Rust side only; docker-compose from Phase 0) and six end-to-end scenarios against real Radicale."
       },
       "dependencies": {
         "blocks": [
@@ -1025,19 +1023,14 @@
     "verify-6-1": {
       "type": "verify",
       "title": "Phase 5 fidelity review",
-      "status": "completed",
+      "status": "pending",
       "parent": "phase-6",
       "children": [],
       "total_tasks": 1,
-      "completed_tasks": 1,
+      "completed_tasks": 0,
       "metadata": {
         "description": "Compare Phase 5 implementation against spec: integration test harness and all 6 E2E scenarios. Run cargo tarpaulin --branch; verify coverage >= 90% for core modules.",
-        "verification_type": "fidelity",
-        "started_at": "2026-02-28T14:52:11.127056Z",
-        "completed_at": "2026-02-28T14:52:21.543104Z",
-        "needs_journaling": false,
-        "actual_hours": 0.0,
-        "journaled_at": "2026-02-28T14:52:21.543280Z"
+        "verification_type": "fidelity"
       },
       "dependencies": {
         "blocks": [],
@@ -1561,15 +1554,6 @@
       "author": "foundry-mcp",
       "metadata": {},
       "task_id": "task-6-4"
-    },
-    {
-      "timestamp": "2026-02-28T14:52:21.543280Z",
-      "entry_type": "status_change",
-      "title": "Task Completed: Phase 5 fidelity review",
-      "content": "Phase 5 fidelity review completed. MCP review verdict: partial \u2192 fixes applied. HIGH severity: orphaned_caldavuid_causes_tw_deletion was missing TW deletion assertion \u2014 added r2.written_tw >= 1 and get_tw_task status == 'deleted' checks. MEDIUM severity: status_sync_caldav_completed_to_tw used weak disjunctive assertion \u2014 split into two sequential assertions (written_tw >= 1 first, then status == 'completed'). LOW severity items documented in review report and accepted: Radicale not stopped after suite (operator responsibility), import_tw_tasks_bulk uses 100 separate docker runs (functional correctness met, no timing requirement in AC), TW\u2192CalDAV status direction not explicitly tested (not in AC). cargo build --tests passes with zero warnings after fixes. Full test execution against live Docker infrastructure deferred to CI environment.\"",
-      "author": "foundry-mcp",
-      "metadata": {},
-      "task_id": "verify-6-1"
     }
   ]
 }
