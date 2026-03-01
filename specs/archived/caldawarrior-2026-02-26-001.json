@@ -2,7 +2,7 @@
   "spec_id": "caldawarrior-2026-02-26-001",
   "title": "caldawarrior",
   "generated": "2026-02-26T11:33:37.612663Z",
-  "last_updated": "2026-02-28T15:41:01.123179Z",
+  "last_updated": "2026-03-01T08:57:57.326901Z",
   "metadata": {
     "description": "",
     "mission": "Build a bidirectional CLI sync tool between TaskWarrior and CalDAV VTODO items in Rust, using LWW conflict resolution, a no-database design keyed on a TW UDA, and a two-layer loop-prevention mechanism.",
@@ -22,7 +22,7 @@
     "spec-root": {
       "type": "spec",
       "title": "caldawarrior",
-      "status": "completed",
+      "status": "archived",
       "parent": null,
       "children": [
         "phase-1",
