@@ -97,6 +97,7 @@ fn dependency_sync_tw_to_caldav() {
         description: None,
         status: Some("NEEDS-ACTION".to_string()),
         last_modified: Some(Utc::now()),
+        dtstamp: None,
         dtstart: None,
         due: None,
         completed: None,

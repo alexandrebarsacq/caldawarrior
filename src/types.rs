@@ -215,6 +215,8 @@ pub struct VTODO {
     /// NEEDS-ACTION | COMPLETED | CANCELLED | IN-PROCESS
     pub status: Option<String>,
     pub last_modified: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dtstamp: Option<DateTime<Utc>>,
     pub dtstart: Option<DateTime<Utc>>,
     pub due: Option<DateTime<Utc>>,
     pub completed: Option<DateTime<Utc>>,

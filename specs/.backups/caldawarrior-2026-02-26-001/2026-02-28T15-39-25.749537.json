@@ -2,7 +2,7 @@
   "spec_id": "caldawarrior-2026-02-26-001",
   "title": "caldawarrior",
   "generated": "2026-02-26T11:33:37.612663Z",
-  "last_updated": "2026-02-28T14:52:21.543354Z",
+  "last_updated": "2026-02-28T15:34:07.925996Z",
   "metadata": {
     "description": "",
     "mission": "Build a bidirectional CLI sync tool between TaskWarrior and CalDAV VTODO items in Rust, using LWW conflict resolution, a no-database design keyed on a TW UDA, and a two-layer loop-prevention mechanism.",
@@ -1071,7 +1071,7 @@
     "task-7-1": {
       "type": "task",
       "title": "Write README and configuration reference",
-      "status": "pending",
+      "status": "in_progress",
       "parent": "phase-7",
       "children": [],
       "total_tasks": 1,
@@ -1086,7 +1086,8 @@
           "docs/configuration.md covers CALDAWARRIOR_PASSWORD and CALDAWARRIOR_CONFIG env vars",
           "v2 roadmap section covers: sync-token, keyring, DIGEST auth, multi-server, CalDAV CANCEL recovery"
         ],
-        "task_category": "implementation"
+        "task_category": "implementation",
+        "started_at": "2026-02-28T15:34:07.925876Z"
       },
       "dependencies": {
         "blocks": [],

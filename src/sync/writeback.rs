@@ -98,6 +98,7 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         description: fields.description,
         status: status_str,
         last_modified: Some(now),
+        dtstamp: None,
         dtstart: fields.dtstart,
         due: fields.due,
         completed: completed_dt,
@@ -259,7 +260,7 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
             Some(resolve_lww(entry.clone(), now))
         }
 
-        // ── TW-only: push to CalDAV ───────────────────────────────────────────
+        // ── TW-only: push to CalDAV or handle orphan ─────────────────────────
         (Some(tw), None) => {
             let tw_uuid = entry.tw_uuid.expect("tw-only entry must have tw_uuid");
 
@@ -274,6 +275,11 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
                     tw_uuid: Some(tw_uuid),
                     reason: SkipReason::Recurring,
                 });
+            }
+            // Orphaned: caldavuid is set but the CalDAV VTODO no longer exists.
+            // The external deletion is treated as authoritative → delete from TW.
+            if tw.caldavuid.is_some() {
+                return Some(PlannedOp::DeleteFromTw(entry.clone()));
             }
             Some(PlannedOp::PushToCalDav(entry.clone()))
         }
@@ -628,6 +634,7 @@ mod tests {
             description: Some("Task".to_string()),
             status: Some(status.to_string()),
             last_modified: Some(last_modified),
+            dtstamp: None,
             dtstart: None,
             due: None,
             completed: None,
@@ -934,6 +941,34 @@ mod tests {
         assert_eq!(result.written_caldav, 1);
         let calls = caldav.calls.lock().unwrap();
         assert!(calls.is_empty(), "dry_run must not make real CalDAV calls");
+    }
+
+    #[test]
+    fn orphaned_caldavuid_deletes_tw_task() {
+        // TW task has caldavuid but no matching VTODO → orphaned → DeleteFromTw.
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_tw_only_entry(uuid, &caldav_uid, "pending");
+        // Mark the task as already synced (caldavuid set on the TW task itself).
+        if let Some(ref mut tw) = entry.tw_task {
+            tw.caldavuid = Some(caldav_uid.clone());
+        }
+        let mut ir = vec![entry];
+
+        let mock_tw = MockTaskRunner::new();
+        mock_tw.push_run_response(Ok(String::new())); // uda type
+        mock_tw.push_run_response(Ok(String::new())); // uda label
+        mock_tw.push_run_response(Ok(String::new())); // tw.delete()
+        let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
+
+        let caldav = MockCalDavClient::new();
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+
+        assert_eq!(result.written_tw, 1, "orphaned task should be deleted from TW");
+        assert_eq!(result.written_caldav, 0, "orphaned task must NOT be pushed to CalDAV");
+        assert_eq!(result.errors.len(), 0);
+        let calls = caldav.calls.lock().unwrap();
+        assert!(calls.is_empty(), "no CalDAV calls for orphaned deletion");
     }
 
     #[test]

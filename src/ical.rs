@@ -27,6 +27,7 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
     let mut description: Option<String> = None;
     let mut status: Option<String> = None;
     let mut last_modified: Option<DateTime<Utc>> = None;
+    let mut dtstamp: Option<DateTime<Utc>> = None;
     let mut dtstart: Option<DateTime<Utc>> = None;
     let mut due: Option<DateTime<Utc>> = None;
     let mut completed: Option<DateTime<Utc>> = None;
@@ -86,8 +87,11 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
                 };
                 depends.push((rel, value.clone()));
             }
-            // Skip well-known non-data properties
-            "DTSTAMP" | "BEGIN" | "END" => {}
+            "DTSTAMP" => {
+                dtstamp = parse_datetime_with_params(&value, &params);
+            }
+            // Skip well-known structural markers
+            "BEGIN" | "END" => {}
             _ => {
                 extra_props.push(IcalProp {
                     name: name.to_string(),
@@ -106,6 +110,7 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
         description,
         status,
         last_modified,
+        dtstamp,
         dtstart,
         due,
         completed,
@@ -452,6 +457,7 @@ mod tests {
             description: Some("A description".to_string()),
             status: Some("NEEDS-ACTION".to_string()),
             last_modified: Some(Utc.with_ymd_and_hms(2026, 2, 26, 10, 0, 0).unwrap()),
+            dtstamp: None,
             dtstart: Some(Utc.with_ymd_and_hms(2026, 2, 26, 9, 0, 0).unwrap()),
             due: Some(Utc.with_ymd_and_hms(2026, 2, 27, 12, 0, 0).unwrap()),
             completed: None,
@@ -488,6 +494,7 @@ mod tests {
             description: None,
             status: None,
             last_modified: None,
+            dtstamp: None,
             dtstart: None,
             due: None,
             completed: None,
@@ -532,6 +539,7 @@ mod tests {
             description: None,
             status: None,
             last_modified: None,
+            dtstamp: None,
             dtstart: None,
             due: None,
             completed: None,
@@ -635,6 +643,21 @@ mod tests {
             serialized.contains("DTSTAMP:"),
             "DTSTAMP should be present in output"
         );
+    }
+
+    #[test]
+    fn test_dtstamp_parsed() {
+        // A VTODO with an explicit DTSTAMP should populate vtodo.dtstamp after parsing.
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:dtstamp-test-001\r\n\
+            DTSTAMP:20260215T120000Z\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        let dtstamp = vtodo.dtstamp.expect("dtstamp should be parsed");
+        assert_eq!(dtstamp.format("%Y%m%dT%H%M%SZ").to_string(), "20260215T120000Z");
+        // LAST-MODIFIED absent; dtstamp is present
+        assert!(vtodo.last_modified.is_none());
     }
 
     #[test]

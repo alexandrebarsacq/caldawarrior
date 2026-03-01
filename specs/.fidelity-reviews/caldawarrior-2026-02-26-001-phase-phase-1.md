@@ -3,65 +3,57 @@
 **Spec ID:** caldawarrior-2026-02-26-001
 **Scope:** phase (phase: phase-1)
 **Verdict:** pass
-**Date:** 2026-02-26T15:13:38.555158
+**Date:** 2026-02-28T19:44:38.861793
 
 ## Summary
 
-All three Phase 0 tasks are fully implemented and satisfy their acceptance criteria. The Rust project is correctly scaffolded with the required [[bin]] entry, all dependency candidates, and a committed Cargo.lock. The Radicale Docker setup provides a complete VTODO PUT/REPORT round-trip harness. The empirical research script covers all 9 required behavioral items (13 sub-tests, 13/13 passing against TW 3.4.2), and both required ADRs are thorough, actionable, and explicitly gate Phase 3 implementation decisions. Minor issues are limited to low severity.
+Phase 0 requirements are substantively met across all three tasks. The Rust project was initialized correctly with the [[bin]] entry, all dependency candidates (including icalendar = "0.16" at commit 1253344, later removed after evaluation as intended), and a passing cargo build. The Docker/Radicale stack is functional with a confirmed VTODO PUT/REPORT round-trip, though the host-side port is 5233 rather than the spec-stated 5232 — a low-severity deviation. The empirical research script (tw-behavior-research.sh) covers all 9 required behavioral items, achieved 13/13 passing tests against TW 3.4.2, and the findings are thoroughly documented in two well-structured ADRs that directly gate Phase 3 design decisions.
 
 ## Requirement Alignment
 **Status:** yes
 
-task-1-1: Cargo.toml has correct [[bin]] entry (name='caldawarrior', path='src/main.rs'), all required dependency candidates are present (serde/serde_json, reqwest with blocking+rustls-tls, chrono/chrono-tz, uuid, thiserror, anyhow, clap, icalendar), and Cargo.lock exists. task-1-2: docker-compose.yml binds Radicale to port 5232 with auth=none and filesystem storage; verify-radicale.sh performs the full MKCOL + PUT VTODO + REPORT round-trip. task-1-3: tw-behavior-research.sh covers all 9 behavioral items (14 test assertions); docs/adr/tw-field-clearing.md and docs/adr/loop-prevention.md document all findings with explicit Phase 3 decision tables and implementation requirements.
+task-1-1: [[bin]] entry (name=caldawarrior, path=src/main.rs) present in Cargo.toml. All listed dependency candidates confirmed in the Phase 0 scaffold commit (1253344): serde/serde_json, reqwest (blocking+rustls-tls), chrono/chrono-tz, uuid, thiserror, anyhow, clap, icalendar=0.16. The icalendar crate was included at Phase 0 and later removed in subsequent phases after evaluation — this is exactly the behaviour implied by '(evaluated in Phase 0)'. Cargo.lock was committed in 1253344. task-1-2: docker-compose.yml + radicale.config created; VTODO round-trip verified per journal. task-1-3: Shell script covers all 9 behavioral items; ADRs written with required depth, decision tables, state machine, worked examples, and explicit Phase 3 gating section.
 
 ## Success Criteria
 **Status:** yes
 
-AC1-1a: [[bin]] name='caldawarrior' confirmed in Cargo.toml. AC1-1b: Cargo.lock present and committed per git log (commit 1253344). AC1-1c: cargo build confirmed via journal (232 packages). AC1-2a: Radicale exposed at http://localhost:5232 confirmed by docker-compose.yml port mapping. AC1-2b: verify-radicale.sh performs MKCOL + PUT + REPORT and checks UID in response. AC1-3a: All 9 behavioral items covered in tw-behavior-research.sh and documented in ADRs. AC1-3b: loop-prevention.md has two-layer design with four worked examples (A–D). AC1-3c: tw-field-clearing.md covers all field-clear methods (trailing colon, import-omit=clear) and all status transitions. AC1-3d: loop-prevention.md contains an explicit 'Implementation Requirements for Phase 3' section with 7 concrete requirements derived from empirical findings.
+AC 1-1-a ([[bin]] name=caldawarrior): PASS — confirmed in Cargo.toml lines 6-8. AC 1-1-b (Cargo.lock committed): PASS — visible in commit 1253344 file list. AC 1-1-c (cargo build succeeds): PASS — journal records 232 packages compiled successfully. AC 1-2-a (Radicale at localhost:5232): PARTIAL — container listens on 5232 internally, but docker-compose maps host port 5233 → container 5232; external URL is localhost:5233, not localhost:5232. Functional requirement met; exact AC literal missed. AC 1-2-b (PUT/REPORT round-trip): PASS — journal documents MKCOL + PUT (201) + REPORT (207 with UID confirmed). AC 1-3-a (all 9 items in ADRs): PASS — tw-behavior-research.sh covers items 1-9; both ADRs document all findings with decision tables. AC 1-3-b (loop-prevention.md two-layer design with examples): PASS — four worked examples (A-D), state machine pseudocode, rationale for caldavuid anchor, and explicit Phase 3 requirements section. AC 1-3-c (tw-field-clearing.md field-clear and status transitions): PASS — covers trailing-colon clearing (caldavuid, due, scheduled), omit=clear semantics, all status transitions table, idempotency findings. AC 1-3-d (Phase 0 gates Phase 3): PASS — loop-prevention.md section 'Implementation Requirements for Phase 3' lists 7 concrete constraints derived from empirical findings.
 
 ## Deviations
 
-- **[LOW]** reqwest TLS feature is 'rustls-tls' rather than the generic 'tls' alias mentioned in the spec.
-  - Justification: rustls-tls is a pure-Rust, more portable TLS implementation and a strictly valid choice. The spec's 'blocking+tls' description was not prescriptive about the TLS backend. No functional difference for the sync use case.
-- **[LOW]** A foundry artifact directory (tests/integration/specs/) was committed in the initial Radicale setup commit, then removed in a follow-up cleanup commit.
-  - Justification: Already resolved: a .gitignore entry now excludes the path. The commit history is slightly noisier but the working tree is clean.
-- **[LOW]** No explicit ADR documenting the evaluation/selection of the 'icalendar' crate, which the spec describes as 'evaluated in Phase 0'.
-  - Justification: The spec task description says the crate is a 'dependency candidate' to be evaluated; no separate ADR file is listed in the acceptance criteria for task-1-1. The crate is included in Cargo.toml. Formal evaluation doc is a Phase 1 concern.
-- **[LOW]** The loop-prevention.md state machine introduces a 'last_synced_modified' field that could imply persistent external storage, in apparent tension with the spec's 'no-database design' mission.
-  - Justification: Reading the ADR's combined invariant closely (TW.modified == CalDAV.LAST-MODIFIED → in sync), last_synced_modified is derivable at runtime from TW's stored modified timestamp — no separate DB is required. The notation is a presentation choice, not an implementation commitment. Phase 3 can resolve this explicitly.
+- **[LOW]** docker-compose.yml exposes Radicale on host port 5233 (mapping 5233:5232) rather than the spec AC's stated localhost:5232.
+  - Justification: Likely intentional to avoid collision with a user's existing local Radicale instance on the standard port. The radicale.config correctly binds internally to 0.0.0.0:5232, and the journal confirms full round-trip verification succeeded. The functional intent of the AC is fulfilled; only the literal port number differs.
+- **[LOW]** The radicale.config enables htpasswd authentication (auth.type=htpasswd), requiring an htpasswd volume mount. The spec's AC does not specify auth configuration; the docker-compose.yml verify-radicale.sh (mentioned in journal but not read) presumably accounts for this. No auth=none as might be expected for a bare research setup.
+  - Justification: Adds minor complexity for the research harness but does not violate any spec requirement. Credentials are supplied via volume mount and the round-trip was confirmed working.
 
 ## Test Coverage
 **Status:** sufficient
 
-tw-behavior-research.sh is the primary test artefact for Phase 0. It runs 13 assertions across 9 behavioral items (with sub-tests for item 7 and item 9) and reports 13/13 passing against TW 3.4.2. The script uses isolated TASKDATA environments to prevent pollution. verify-radicale.sh provides an end-to-end CalDAV round-trip check. Phase 0 is a scaffolding/research phase; unit or integration tests for production code are not expected until Phase 1–5.
+Phase 0 is a scaffolding and research phase; automated unit/integration tests are not applicable. The empirical research script (tw-behavior-research.sh) serves as the Phase 0 'test suite' and is comprehensive: 13 assertions across 9 behavioral areas all passed against TW 3.4.2. Script uses isolated TASKDATA environments (mktemp), cleans up via trap, and includes both pass/fail assertions and design notes. This is appropriate coverage for a research phase.
 
 ## Code Quality
 
-The research script is well-structured: isolated TASKDATA environments, helper functions (tw/twj/py), and a clear PASS/FAIL/NOTES summary. The ADRs are production-quality documentation with decision tables, implications, and explicit Phase 3 requirements. No security concerns for Phase 0 artefacts.
+These are minor quality notes in research/scaffolding artifacts. No production Rust code was written in Phase 0, so there are no Rust code quality concerns at this stage.
 
-- tw-behavior-research.sh uses 'set -uo pipefail' but omits 'set -e'; this is intentional to handle expected non-zero exits (e.g., task delete on already-deleted task), but it means unhandled errors in helper calls could be silently swallowed in some paths.
-- Item 8 (task delete idempotency) pass/fail logic: if the second delete message doesn't match the grep patterns, it falls through to a 'note' rather than an explicit 'pass' or 'fail', potentially understating a failure.
-- src/main.rs and src/lib.rs are empty scaffolding stubs — expected for Phase 0 but worth noting for completeness.
+- tw-behavior-research.sh item 2 contains a dead code path (lines 98-100: a failed/abandoned python3 approach immediately overridden on line 103). This is minor cleanup debt in a research script.
+- The research script uses set -uo pipefail but not set -e, meaning individual command failures (other than pipefail-triggered ones) are absorbed by explicit exit-code checks. This is a deliberate design choice for test scripts but is worth noting.
+- loop-prevention.md state machine pseudocode references 'last_synced_modified' as a derived value (not stored) but the pseudocode compares against it as if it were tracked — a slight conceptual tension that is explained in prose but could confuse Phase 3 implementors. The prose correctly clarifies the no-database design.
 
 ## Documentation
 **Status:** adequate
 
-Both required ADR files are present and well-written. docs/adr/tw-field-clearing.md covers field clearing, import semantics, status transitions, and a decision table. docs/adr/loop-prevention.md covers the two-layer design rationale, four worked examples, a state machine, and concrete Phase 3 requirements. The research script itself is heavily commented. README is not expected until Phase 6.
+Both ADRs are well-structured with date, status, context, problem statement, design rationale, worked examples, and explicit downstream requirements. tw-field-clearing.md includes a decision table directly usable by Phase 3 implementors. loop-prevention.md covers the 'why' (problem), 'what' (two layers), 'how' (state machine + invariants), and 'so what' (Phase 3 requirements). The research script itself is documented with section headers and design notes. No gaps for a Phase 0 deliverable.
 
 ## Issues
 
-- No critical or high-severity issues found.
-- Minor: rustls-tls vs tls alias (functionally equivalent, low severity).
-- Minor: foundry artifact committed then cleaned up — already resolved.
-- Minor: no icalendar evaluation ADR (not required by Phase 0 ACs).
-- Minor: loop-prevention state machine notation could be clarified re: no-database invariant.
+- Host port 5233 used in docker-compose.yml instead of spec AC's stated localhost:5232 — functional but deviates from the acceptance criterion letter.
+- Dead code path in tw-behavior-research.sh item 2 (unused python3 block before the correct implementation on line 103).
 
 ## Recommendations
 
-- In Phase 1 or Phase 3, add a brief ADR or Cargo.toml comment documenting the icalendar crate evaluation rationale (version 0.16, feature set, any known limitations for VTODO serialization).
-- In loop-prevention.md or the Phase 3 design, explicitly clarify that 'last_synced_modified' is derived from TW's stored modified field (not a separate database), reinforcing the no-database design invariant.
-- Consider adding an 'exit 1' at the end of tw-behavior-research.sh when FAIL > 0, so CI/automation can detect research regressions automatically.
-- For item 8 in the research script, tighten the pass/fail condition to cover the known TW 3.4.2 error message ('is not deletable') explicitly, to avoid silent note-instead-of-fail scenarios on future TW versions.
+- Update docker-compose.yml to map port 5232:5232, or update any downstream scripts/docs that reference the Radicale URL to use port 5233, to eliminate the discrepancy with the spec AC.
+- Remove the dead code block in tw-behavior-research.sh lines 98-100 (the first, unused DELETED_JSON_RAW approach) to keep the research script clean for future reference.
+- Consider adding a brief note in loop-prevention.md clarifying that 'last_synced_modified' in the state machine is derived at runtime from TW.modified after a successful sync (not a stored value), to prevent Phase 3 implementors from introducing unnecessary state storage.
 
 ---
 *Generated by Foundry MCP Fidelity Review*

@@ -234,6 +234,7 @@ mod tests {
                 description: None,
                 status: status.map(str::to_owned),
                 last_modified: None,
+                dtstamp: None,
                 dtstart: None,
                 due: None,
                 completed: None,

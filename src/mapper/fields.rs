@@ -188,6 +188,7 @@ mod tests {
             description: None,
             status: None,
             last_modified: None,
+            dtstamp: None,
             dtstart: None,
             due: None,
             completed: None,

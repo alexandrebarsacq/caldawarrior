@@ -2,76 +2,82 @@
 
 **Spec ID:** caldawarrior-2026-02-26-001
 **Scope:** phase (phase: phase-4)
-**Verdict:** partial
-**Date:** 2026-02-27T14:41:32.752465
+**Verdict:** pass
+**Date:** 2026-02-28T15:58:15.713907
 
 ## Summary
 
-Phase 3 implementation is structurally sound and covers the majority of spec requirements across all three files. The LWW algorithm, write-back decision tree, and sync orchestrator are correctly architected with proper ETag retry ownership, warning aggregation, injected-clock testing, and the full 8-field Layer 2 identical check. However, three issues prevent a clean pass: (1) DTSTAMP fallback is explicitly required as an AC but is absent and untested due to a parser-level limitation from an earlier phase; (2) several writeback decision-tree branches lack direct unit tests (TW-completed → CalDAV COMPLETED, CalDAV-completed → TW update), violating the 'all branches' AC; and (3) no compilation or test run has been executed, so we cannot confirm tests pass or that the code is free of compiler errors. A secondary concern is an inconsistency in wait-expiry logic: `content_identical` uses the injected `now`, while `tw_to_caldav_fields` calls `Utc::now()` directly, creating a subtle non-determinism in the write path.
+Phase 3 (Sync Algorithm) implementation is substantively complete and architecturally sound. All three modules (lww.rs, writeback.rs, mod.rs) are present and correctly implement the two-layer LWW resolver, the write-back decision tree with ETag retry ownership, and the three-step sync orchestrator. All SkipReason (8) and UpdateReason (5) variants are produced correctly. The single cross-model deviation — unavailability of DTSTAMP fallback due to upstream parser limitations — is handled gracefully via TW-wins tiebreaker and is explicitly documented and tested. No HIGH or CRITICAL severity deviations were identified by either reviewer. Claude additionally flagged dead-code paths, a stale doc comment, and the absence of compiled test-run output; none of these rise above medium severity.
 
 ## Requirement Alignment
 **Status:** partial
 
-task-4-1 (lww.rs): All 8 Layer-2 fields are checked with correct normalization (status enum, second-precision timestamps, sorted RELATED-TO, expired-wait collapse). Layer 1 LWW logic is correct; epoch default for missing LAST-SYNC ensures TW wins on first sync. DTSTAMP fallback required by AC is absent — the parser discards DTSTAMP and no workaround is implemented. task-4-2 (writeback.rs): apply_writeback signature matches spec (plus justified `now` injection). ETag retry is exclusively owned here (MAX_ETAG_RETRIES=3), full decision tree re-evaluated on each retry. create() vs update() routing is correct. CalDAV-uid-to-TW-uuid reverse index is built and passed through. X-CALDAWARRIOR-LAST-SYNC is set on every CalDAV write via build_vtodo_from_tw. Two SkipReason variants (Completed, CalDavDeletedTwTerminal) are defined in types.rs but never emitted — CalDAV-only terminal entries return None from decide_op rather than PlannedOp::Skip, which still increments skipped but loses the semantic reason. task-4-3 (mod.rs): Three-step pipeline in correct order, ETag retry not re-implemented, warnings drained and merged from all three steps, dry_run passed through. Depends mapping: tw_to_caldav_fields converts TW UUIDs directly to strings, not through entry.resolved_depends as specified; this is valid only because caldavuid UDA design makes TW UUID == CalDAV UID, but deviates from the spec's stated mechanism.
+Gemini assessed alignment as fully 'yes'; claude assessed it as 'partial' due to the DTSTAMP fallback AC being unsatisfiable at the Phase 3 layer without an upstream parser fix. All other core ACs are met: resolve_lww() uses correct timestamp ordering, the 8-field content-identical check covers all required fields with correct normalization, X-CALDAWARRIOR-LAST-SYNC is set on every CalDAV write, ETag retry is owned exclusively in apply_writeback, CalDAV-only NEEDS-ACTION routes through tw.create(), depends are reverse-mapped via the IR HashMap index, and run_sync executes the three steps in order.
 
 ## Success Criteria
 **Status:** partial
 
-Met: TW-wins/CalDAV-wins/Identical tests in lww.rs; regression test (CalDAV-wins then Identical on resync); status normalization test; all writeback branches tested except completed state transitions; integration tests for three-step flow, dry-run, warning collection, dependency ordering; ETag exhaustion error accumulation test; LAST-SYNC written on every CalDAV PUT. Not met: DTSTAMP fallback test absent from lww.rs test suite (AC explicitly requires it); writeback tests do not cover TW-completed → CalDAV COMPLETED (TwCompletedMarkCompleted) or CalDAV-completed → TW update (CalDavCompletedUpdateTw) branches; regression AC specifies 'written_caldav==0 && written_tw==0' but the lww.rs regression test only checks Skip(Identical) at the LWW level without going through apply_writeback (a companion writeback test paired_identical_skips does verify the counters but is not framed as the regression test). No test results: compilation and test passage are entirely unverified.
+Gemini rated all ACs as met; claude rated them 'partial' specifically because (1) the DTSTAMP fallback AC cannot be satisfied at the Phase 3 layer without a parser change, and (2) no compiled cargo test output is available to confirm all 24 tests compile and pass. All other verifiable ACs — TW-wins tiebreaker, regression test coverage, ETag retry, dry-run passthrough, mock adapter integration tests, three-step pipeline order — are demonstrably satisfied by code inspection.
 
 ## Deviations
 
-- **[MEDIUM]** DTSTAMP fallback for LWW comparison is not implemented. The spec AC requires 'LWW uses TW.modified vs CalDAV LAST-MODIFIED (DTSTAMP fallback for comparison only, never on write path)' and a dedicated unit test for the DTSTAMP fallback case.
-  - Justification: The iCalendar parser from Phase 2 discards DTSTAMP; the code documents this limitation explicitly. The behavior degrades safely to TW-wins when LAST-MODIFIED is absent. However, this does not satisfy the spec AC and the required test is completely missing.
-- **[HIGH]** No compilation or test run has been executed. The journal explicitly defers 'Full test run to verify-4-1 (cargo unavailable in env)'. No test results are available for any of the three files.
-  - Justification: Environment limitation (cargo unavailable). The code is structurally consistent and compiles-looking, but Rust's borrow checker and type system could reveal issues that only surface at compile time.
-- **[MEDIUM]** Unit tests for writeback.rs do not cover TwCompletedMarkCompleted (TW completed → CalDAV COMPLETED PUT) and CalDavCompletedUpdateTw (CalDAV COMPLETED → tw.update()) branches. The AC requires coverage of all branches with MockCalDavClient injection.
-  - Justification: The decision-tree logic for both branches exists in decide_op and execute_op, but no test exercises them. A basic test verifying written_caldav=1 for TW-completed and written_tw=1 for CalDAV-completed is missing.
-- **[LOW]** Two SkipReason variants (Completed, CalDavDeletedTwTerminal) are defined in types.rs but are never emitted by the Phase 3 decision tree. CalDAV-only COMPLETED/CANCELLED entries return None from decide_op rather than PlannedOp::Skip. The AC states 'All SkipReason variants used correctly per decision tree'.
-  - Justification: The counting behavior (result.skipped += 1) is still correct. Returning None is semantically valid for terminal CalDAV-only entries but loses the per-variant diagnostic reason. Potentially intentional, but diverges from the AC.
-- **[LOW]** tw_to_caldav_fields uses Utc::now() directly for the wait-expiry collapse, while content_identical uses the injected `now: DateTime<Utc>` parameter for the same check. This creates a timing inconsistency between the Layer-2 comparison and the actual write.
-  - Justification: For practical sync runs the two calls are nanoseconds apart, so the risk of mismatching behavior is negligible. However, it makes the write path non-deterministic in tests and creates a subtle asymmetry between what content_identical checks and what build_vtodo_from_tw writes.
-- **[LOW]** Depends mapping in build_vtodo_from_tw uses tw_to_caldav_fields(tw).depends (TW UUIDs as strings) rather than entry.resolved_depends (CalDAV UIDs from IR resolution) as specified by the AC 'TW depends reverse-mapped from resolved_depends through IR HashMap index'.
-  - Justification: Functionally equivalent because the caldavuid UDA design ensures TW UUID == CalDAV UID for all synced tasks. The comment in tw_to_caldav_fields acknowledges this design invariant. However, the implementation deviates from the spec's stated mechanism.
+- **[MEDIUM]** DTSTAMP fallback for LAST-MODIFIED comparison is unavailable. The spec requires using DTSTAMP as a fallback when LAST-MODIFIED is absent ('for comparison only, never on write path'), but the upstream iCalendar parser discards DTSTAMP at parse time, making it inaccessible at the Phase 3 layer. When LAST-MODIFIED is absent, the implementation degrades to the TW-wins tiebreaker instead.
+  - Justification: Inherited constraint from the Phase 1/2 iCalendar parser; cannot be resolved within Phase 3 alone. The fallback (TW-wins) is safe and conservative — it pushes TW state rather than silently missing a CalDAV update. The limitation is explicitly documented in inline comments and covered by a dedicated test ('no_last_modified_dtstamp_fallback_unavailable_tw_wins'). The write-path portion of the AC is trivially satisfied since DTSTAMP is not available at all.
+- **[LOW]** PlannedOp::DeleteFromCalDav and PlannedOp::DeleteFromTw variants have full execute_op handlers but are never produced by decide_op in writeback.rs, making them unreachable dead code paths in Phase 3.
+  - Justification: The sync design uses soft-delete (CANCELLED status) rather than hard delete, which is consistent with the spec. The handlers may serve future phases or hardening. No functional impact on Phase 3 sync behavior.
+- **[LOW]** VTODO DESCRIPTION is always written equal to SUMMARY (both set to tw.description in build_vtodo_from_tw). Repeated sync cycles will overwrite a CalDAV-sourced DESCRIPTION with the SUMMARY content.
+  - Justification: Consistent with the field-mapping convention used throughout the codebase and reflected symmetrically in the content_identical check. This is an intentional architectural simplification documented in code comments rather than a bug.
+- **[MEDIUM]** No compiled test-run results are available. All 24 tests were deferred to verify-4-1 because cargo was unavailable in the implementation environment. Compilation and runtime behavior are unconfirmed.
+  - Justification: Explicitly documented in the implementation journal. Code inspection by claude strongly suggests tests are syntactically correct. Confirmation is expected in the Phase 3 verification task. Gemini did not flag this as a concern.
 
 ## Test Coverage
-**Status:** insufficient
+**Status:** sufficient
 
-lww.rs: 6 tests covering TW-wins, CalDAV-wins, Identical, first-sync (no LAST-SYNC), regression (CalDAV-wins → Identical), status normalization. Missing: DTSTAMP fallback test (required by AC). writeback.rs: 11 tests covering TW-only pending push, TW-only deleted skip, CalDAV-only NEEDS-ACTION create, CalDAV-only COMPLETED skip, paired TW-wins, paired CalDAV-wins, paired Identical, ETag exhaustion, dry-run, TW-deleted → CalDAV CANCELLED, cyclic skip. Missing: TW-completed → CalDAV COMPLETED, CalDAV-completed → TW update. mod.rs: 4 integration tests covering TW-only push, dry-run, warning collection, dependency resolution ordering. Coverage is missing for paired scenarios and CalDAV-only at the orchestration level. Critically: no test run results exist to confirm any of these tests actually pass.
+Both models rated test coverage as sufficient. lww.rs contains 7 unit tests covering all LWW decision paths (TW-wins, CalDAV-wins, identical, no-LAST-SYNC, regression, status normalization, DTSTAMP fallback unavailability). writeback.rs contains 13 unit tests covering all PlannedOp decision paths including ETag retry exhaustion, dry-run, and dependency mapping. mod.rs contains 4 integration tests using mock adapters (MockCalDavClient, MockTaskRunner) covering the full pipeline, dry-run, warning collection, and step ordering. The regression AC (CalDAV-wins then identical-on-resync) is covered at the unit level. Gap noted by claude: no cargo test run output confirms actual compilation and passage.
 
 ## Code Quality
 
-Overall the code is well-structured Rust with good separation of concerns, proper error propagation, injected clocks for testability, and clear documentation. The primary quality concern is the unverified compilation state and the non-deterministic wait-check in the mapper.
+Gemini found no code quality issues, characterizing the implementation as clean, idiomatic Rust with excellent use of enums for modeling outcomes and a well-structured decision tree minimizing cyclomatic complexity. Claude concurred on overall quality but identified four minor issues (dead code paths, stale comment, minor asymmetry, loose test assertion). All issues are low severity. Architecture-positive notes shared by both: injected now: DateTime<Utc> enables deterministic testing, generics (TaskRunner) keep adapters testable, helper functions are well-factored, and build_caldav_index is correctly built once per apply_writeback invocation.
 
-- apply_entry re-evaluates decide_op on each ETag retry attempt — correct behavior, but only the first planned_op is recorded (attempt==0 guard); subsequent retry decisions (which may differ after refetch) are not recorded. This is acceptable but could complicate audit logging.
-- build_vtodo_from_tw ignores the VTODO categories field from the existing entry in one path (when fetched_vtodo is None, categories defaults to empty). This is documented via `base.map(...).unwrap_or_default()` but silently drops categories for new push entries.
-- The `_` fallback arm in execute_op's ResolveConflict match (`_ => Ok(true)`) silently succeeds for any unhandled (Side, UpdateReason) combination, which could mask future bugs when new variants are added.
-- tw_to_caldav_fields is called inside a retry loop (via execute_op → build_vtodo_from_tw) and internally calls Utc::now() on each call; in a tight retry loop this is inconsequential but is architecturally impure.
-- PullFromCalDav entry's tw_task.is_none() guard in execute_op is dead code in practice: the CalDAV-only arm of decide_op only produces PullFromCalDav for (None, Some(vtodo)) entries, so tw_task is always None here. The update() fallback branch is unreachable via this op variant.
+- [claude] Dead code: PlannedOp::DeleteFromCalDav and DeleteFromTw are handled in execute_op but never produced by decide_op. Should be removed or annotated with a TODO explaining intended future use.
+- [claude] Stale doc comment: SkipReason::Identical in types.rs references the old 8-field list ('uuid, description, status, due, scheduled, priority, project, tags') rather than the final spec fields (SUMMARY, STATUS, DUE, DTSTART, COMPLETED, RELATED-TO[DEPENDS-ON], X-TASKWARRIOR-WAIT, DESCRIPTION). Implementation is correct; only the comment is outdated.
+- [claude] Minor asymmetry in content_identical: SUMMARY check uses Some(tw.description.as_str()) (returns false if CalDAV SUMMARY is None) while DESCRIPTION check uses unwrap_or(''), creating inconsistent behavior when fields are absent.
+- [claude] ETag retry exhaustion error message assertion in tests uses loose .contains('SyncConflict') OR .contains('ETag') matching, which could mask future message format regressions.
 
 ## Documentation
 **Status:** adequate
 
-All three files carry module-level and function-level doc comments that accurately describe behavior, spec references, and known limitations (DTSTAMP parser limitation is explicitly called out in both the docstring and inline comments). The SkipReason::Identical doc comment in types.rs contains a stale field list ('uuid, description, status, due, scheduled, priority, project, tags') that does not match the actual 8-field contract (SUMMARY, DESCRIPTION, STATUS, DUE, DTSTART, COMPLETED, RELATED-TO[DEPENDS-ON], X-TASKWARRIOR-WAIT). This doc drift is a minor but concrete inaccuracy.
+Both models rated documentation as adequate. All three public functions (resolve_lww, apply_writeback, run_sync) have thorough doc comments explaining algorithms, panic conditions, and design decisions. The DTSTAMP limitation is clearly noted inline. The Layer 1/Layer 2 loop-prevention contract is documented on both resolve_lww and build_vtodo_from_tw. The one identified gap (stale SkipReason::Identical doc comment in types.rs) is minor and does not affect runtime correctness.
 
 ## Issues
 
-- No compilation or test run executed — correctness unverified at the compiler level (HIGH)
-- DTSTAMP fallback not implemented and no DTSTAMP unit test present, violating explicit spec ACs (MEDIUM)
-- Writeback tests missing for TwCompletedMarkCompleted and CalDavCompletedUpdateTw branches (MEDIUM)
-- SkipReason::Completed and SkipReason::CalDavDeletedTwTerminal unused in Phase 3 decision tree (LOW)
-- Wait-expiry inconsistency: content_identical uses injected `now`, build_vtodo_from_tw uses wall-clock Utc::now() (LOW)
-- SkipReason::Identical docstring in types.rs lists stale field names inconsistent with actual 8-field contract (LOW)
+- DTSTAMP fallback for LAST-MODIFIED comparison is unavailable due to upstream parser discarding the property — falls back to TW-wins tiebreaker rather than DTSTAMP comparison as specced. [claude, gemini]
+- No compiled test-run evidence confirming all 24 tests compile and pass; deferred to verify-4-1. [claude]
+- Dead code: DeleteFromCalDav and DeleteFromTw PlannedOp variants are handled in execute_op but never produced by decide_op. [claude]
+- Stale SkipReason::Identical doc comment in types.rs references wrong 8-field set from an earlier draft. [claude]
 
 ## Recommendations
 
-- Run `cargo test` as the immediate next step (verify-4-1 gate); resolve any compilation errors before proceeding to Phase 4.
-- Add a DTSTAMP fallback unit test — even though the parser discards DTSTAMP, add a test that documents the degraded behavior (TW wins when LAST-MODIFIED is absent) and note the parser limitation explicitly so that if DTSTAMP parsing is added in a future phase, the test can be updated.
-- Add writeback unit tests for TwCompletedMarkCompleted (TW status='completed', CalDAV status='NEEDS-ACTION' → PUT with COMPLETED, assert written_caldav=1) and CalDavCompletedUpdateTw (CalDAV status='COMPLETED', TW status='pending' → tw.update, assert written_tw=1).
-- Fix the SkipReason::Identical docstring in types.rs to list the actual 8 fields: SUMMARY, DESCRIPTION, STATUS, DUE, DTSTART, COMPLETED, RELATED-TO[DEPENDS-ON], X-TASKWARRIOR-WAIT.
-- Consider threading `now` into tw_to_caldav_fields (or into build_vtodo_from_tw as an argument) so the wait-expiry check is consistent with content_identical and fully deterministic in tests.
-- Decide whether SkipReason::Completed and CalDavDeletedTwTerminal should be emitted for CalDAV-only terminal entries or removed from the enum to eliminate dead variants.
-- Add a guard or comment for the `_ => Ok(true)` fallback arm in execute_op's ResolveConflict match to prevent silent success for future unhandled (Side, UpdateReason) combinations.
+- Run 'cargo test' in verify-4-1 to confirm all 24 tests compile and pass; specifically validate the regression test and DTSTAMP fallback test.
+- Fix the iCalendar parser (Phase 1/2) to expose DTSTAMP as a fallback for LAST-MODIFIED, or formally accept the limitation and update the spec to reflect the tiebreaker behavior.
+- Update the SkipReason::Identical doc comment in types.rs to reference the correct 8 fields: SUMMARY, STATUS, DUE, DTSTART, COMPLETED, RELATED-TO[DEPENDS-ON], X-TASKWARRIOR-WAIT, DESCRIPTION.
+- Either remove DeleteFromCalDav/DeleteFromTw handlers from execute_op or add a TODO comment documenting the intended future use case.
+- Harden the ETag retry exhaustion test assertion to match the exact expected message format rather than using loose substring checks.
+- Proceed with Phase 4: CLI & Output once verify-4-1 confirms test passage.
+
+## Verdict Consensus
+
+- **pass:** claude, gemini
+
+**Agreement Level:** strong
+
+Both models independently voted 'pass'. Verdict is unambiguous. The models diverge on the granularity of alignment and criteria assessments (claude rates both 'partial' due to the DTSTAMP gap and missing test-run output; gemini rates both 'yes'), but neither escalates any deviation to high or critical severity, so the overall verdict remains 'pass' under the tiebreaker rule as well.
+
+## Synthesis Metadata
+
+- Models consulted: claude, gemini
+- Models succeeded: claude, gemini
+- Synthesis provider: claude
 
 ---
 *Generated by Foundry MCP Fidelity Review*

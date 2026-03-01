@@ -178,9 +178,9 @@ fn content_identical(entry: &IREntry, now: DateTime<Utc>) -> bool {
 /// (as `TW.modified`) on **every CalDAV write** by the write-back layer so
 /// that the LAST-SYNC guard remains accurate across syncs.
 ///
-/// **DTSTAMP:** Not available as a fallback because the iCalendar parser
-/// discards DTSTAMP. If `LAST-MODIFIED` is absent, CalDAV timestamp
-/// comparison is skipped and TW wins.
+/// **DTSTAMP:** Used as a fallback when `LAST-MODIFIED` is absent — the iCalendar
+/// parser now captures DTSTAMP into `VTODO.dtstamp`. If both are absent, CalDAV
+/// timestamp comparison is skipped and TW wins via tiebreaker.
 ///
 /// # Panics
 /// Panics if `entry.tw_task` or `entry.fetched_vtodo` is `None`.
@@ -219,9 +219,9 @@ pub fn resolve_lww(entry: IREntry, now: DateTime<Utc>) -> PlannedOp {
         };
     }
 
-    // CalDAV wins when its LAST-MODIFIED is more recent than TW.
-    // DTSTAMP fallback is not available (discarded by parser).
-    if let Some(caldav_ts) = vtodo.last_modified {
+    // CalDAV wins when its LAST-MODIFIED (or DTSTAMP fallback) is more recent than TW.
+    let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
+    if let Some(caldav_ts) = caldav_ts {
         if caldav_ts > tw_modified {
             return PlannedOp::ResolveConflict {
                 entry,
@@ -298,6 +298,7 @@ mod tests {
             description: Some(summary.to_string()),
             status: Some(status.to_string()),
             last_modified,
+            dtstamp: None,
             dtstart: None,
             due: None,
             completed: None,
@@ -510,36 +511,63 @@ mod tests {
     }
 
     #[test]
-    fn no_last_modified_dtstamp_fallback_unavailable_tw_wins() {
-        // Spec AC: "LWW uses TW.modified vs CalDAV LAST-MODIFIED (DTSTAMP fallback for
-        // comparison only, never on write path)". The iCalendar parser discards DTSTAMP,
-        // so when LAST-MODIFIED is absent we degrade to TW-wins (tiebreaker).
+    fn no_last_modified_no_dtstamp_tw_wins_tiebreaker() {
+        // When both LAST-MODIFIED and DTSTAMP are absent, CalDAV timestamp comparison
+        // is skipped entirely and TW wins via tiebreaker.
         //
-        // Scenario: TW modified BEFORE last_sync (TW has not changed since last sync),
-        // CalDAV LAST-MODIFIED is absent (parser discarded DTSTAMP).
-        // Expected: TW wins via tiebreaker — DTSTAMP fallback is not available.
+        // Scenario: TW modified BEFORE last_sync, CalDAV has neither LAST-MODIFIED nor DTSTAMP.
         let uuid = Uuid::new_v4();
         let last_sync_ts = t(2026, 2, 1, 10, 0, 0);
-        let tw_modified = t(2026, 2, 1, 8, 0, 0); // before last_sync → TW normally wouldn't win on timestamp
+        let tw_modified = t(2026, 2, 1, 8, 0, 0); // before last_sync
 
         let task = make_tw_task(uuid, "Task content", tw_modified);
         let vtodo = make_vtodo(
             &uuid.to_string(),
             "Different CalDAV content", // different content so Layer 2 doesn't fire
             "NEEDS-ACTION",
-            None,            // LAST-MODIFIED absent (parser discards DTSTAMP)
+            None, // LAST-MODIFIED absent
             Some(last_sync_ts),
         );
+        // vtodo.dtstamp is also None (struct literal via make_vtodo)
         let entry = make_entry(task, vtodo);
         let now = t(2026, 2, 2, 0, 0, 0);
 
-        // With LAST-MODIFIED absent, CalDAV timestamp check is skipped → tiebreaker → TW wins.
+        // Both timestamps absent → tiebreaker → TW wins.
         match resolve_lww(entry, now) {
             PlannedOp::ResolveConflict { winner, reason, .. } => {
-                assert!(matches!(winner, Side::Tw), "TW should win via tiebreaker when LAST-MODIFIED absent");
+                assert!(matches!(winner, Side::Tw), "TW should win via tiebreaker when no CalDAV timestamps");
                 assert!(matches!(reason, UpdateReason::LwwTwWins));
             }
-            other => panic!("expected TW wins (DTSTAMP fallback unavailable), got {:?}", other),
+            other => panic!("expected TW wins (no CalDAV timestamps), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn no_last_modified_dtstamp_fallback_caldav_wins() {
+        // When LAST-MODIFIED is absent but DTSTAMP is present and newer than TW, CalDAV wins.
+        let uuid = Uuid::new_v4();
+        let last_sync_ts = t(2026, 2, 1, 9, 0, 0);
+        let tw_modified = t(2026, 2, 1, 8, 0, 0); // before last_sync
+        let dtstamp_ts = t(2026, 2, 1, 11, 0, 0); // newer than TW
+
+        let task = make_tw_task(uuid, "Task content", tw_modified);
+        let mut vtodo = make_vtodo(
+            &uuid.to_string(),
+            "Updated CalDAV content", // different content so Layer 2 doesn't fire
+            "NEEDS-ACTION",
+            None, // LAST-MODIFIED absent
+            Some(last_sync_ts),
+        );
+        vtodo.dtstamp = Some(dtstamp_ts);
+        let entry = make_entry(task, vtodo);
+        let now = t(2026, 2, 2, 0, 0, 0);
+
+        match resolve_lww(entry, now) {
+            PlannedOp::ResolveConflict { winner, reason, .. } => {
+                assert!(matches!(winner, Side::CalDav), "CalDAV should win via DTSTAMP fallback");
+                assert!(matches!(reason, UpdateReason::LwwCalDavWins));
+            }
+            other => panic!("expected CalDAV wins via DTSTAMP fallback, got {:?}", other),
         }
     }
 }
