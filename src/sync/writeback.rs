@@ -16,7 +16,6 @@ use crate::types::{
 use crate::tw_adapter::{TaskRunner, TwAdapter};
 
 const MAX_ETAG_RETRIES: usize = 3;
-const LAST_SYNC_PROP: &str = "X-CALDAWARRIOR-LAST-SYNC";
 
 // ---------------------------------------------------------------------------
 // Reverse index: CalDAV UID → TW UUID (for depends remapping)
@@ -40,9 +39,6 @@ fn build_caldav_index(ir: &[IREntry]) -> HashMap<String, Uuid> {
 
 /// Build a VTODO from a TW task, merging with the existing CalDAV VTODO when
 /// available (to preserve fields we do not manage).
-///
-/// Sets `X-CALDAWARRIOR-LAST-SYNC` to `TW.modified` on every write so the
-/// LWW loop-prevention guard stays accurate.
 fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTODO {
     let fields = tw_to_caldav_fields(tw, now);
     let status_result = tw_to_caldav_status(tw);
@@ -67,23 +63,8 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         .map(|fv| fv.vtodo.extra_props.clone())
         .unwrap_or_default()
         .into_iter()
-        .filter(|p| {
-            !p.name.eq_ignore_ascii_case(LAST_SYNC_PROP)
-                && !p.name.eq_ignore_ascii_case("X-TASKWARRIOR-WAIT")
-        })
+        .filter(|p| !p.name.eq_ignore_ascii_case("X-TASKWARRIOR-WAIT"))
         .collect();
-
-    // Write X-CALDAWARRIOR-LAST-SYNC = TW.modified (Layer 1 loop prevention).
-    let last_sync_value = tw
-        .modified
-        .unwrap_or(tw.entry)
-        .format("%Y%m%dT%H%M%SZ")
-        .to_string();
-    extra_props.push(IcalProp {
-        name: LAST_SYNC_PROP.to_string(),
-        params: vec![],
-        value: last_sync_value,
-    });
 
     // Write X-TASKWARRIOR-WAIT if wait is still future.
     if let Some(wait_prop) = fields.wait {
@@ -97,7 +78,7 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         summary: fields.description.clone(),
         description: fields.description,
         status: status_str,
-        last_modified: Some(now),
+        last_modified: Some(tw.modified.unwrap_or(tw.entry)),
         dtstamp: None,
         dtstart: fields.dtstart,
         due: fields.due,
@@ -652,16 +633,8 @@ mod tests {
         tw_modified: DateTime<Utc>,
         caldav_status: &str,
         caldav_lm: DateTime<Utc>,
-        last_sync: Option<DateTime<Utc>>,
     ) -> IREntry {
-        let mut vtodo = make_vtodo(caldav_uid, caldav_status, caldav_lm);
-        if let Some(ls) = last_sync {
-            vtodo.extra_props.push(IcalProp {
-                name: LAST_SYNC_PROP.to_string(),
-                params: vec![],
-                value: ls.format("%Y%m%dT%H%M%SZ").to_string(),
-            });
-        }
+        let vtodo = make_vtodo(caldav_uid, caldav_status, caldav_lm);
         IREntry {
             tw_uuid: Some(uuid),
             caldav_uid: Some(caldav_uid.to_string()),
@@ -800,14 +773,13 @@ mod tests {
     fn paired_tw_wins_pushes_to_caldav() {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
-        // TW modified after LAST-SYNC → TW wins
+        // TW modified more recently than CalDAV last_modified → TW wins
         let tw_modified = t(2026, 2, 1, 11, 0, 0);
-        let last_sync = t(2026, 2, 1, 10, 0, 0);
         let caldav_lm = t(2026, 2, 1, 9, 0, 0);
 
         let mut entry = make_paired_entry(
             uuid, &caldav_uid, "pending", tw_modified,
-            "NEEDS-ACTION", caldav_lm, Some(last_sync),
+            "NEEDS-ACTION", caldav_lm,
         );
         // Make content differ so Layer 2 doesn't short-circuit to Identical.
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -827,14 +799,13 @@ mod tests {
     fn paired_caldav_wins_updates_tw() {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
-        // TW modified before LAST-SYNC, CalDAV modified after TW → CalDAV wins
+        // CalDAV last_modified is newer than TW modified → CalDAV wins
         let tw_modified = t(2026, 2, 1, 8, 0, 0);
-        let last_sync = t(2026, 2, 1, 9, 0, 0);
         let caldav_lm = t(2026, 2, 1, 11, 0, 0);
 
         let mut entry = make_paired_entry(
             uuid, &caldav_uid, "pending", tw_modified,
-            "NEEDS-ACTION", caldav_lm, Some(last_sync),
+            "NEEDS-ACTION", caldav_lm,
         );
         // Content must differ to avoid Identical shortcut.
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -864,7 +835,7 @@ mod tests {
 
         let entry = make_paired_entry(
             uuid, &caldav_uid, "pending", ts,
-            "NEEDS-ACTION", ts, Some(t(2026, 2, 1, 9, 0, 0)),
+            "NEEDS-ACTION", ts,
         );
         // Both sides have same description "Task" — Layer 2 fires.
         let mut ir = vec![entry];
@@ -883,12 +854,11 @@ mod tests {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
         let tw_modified = t(2026, 2, 1, 11, 0, 0);
-        let last_sync = t(2026, 2, 1, 10, 0, 0);
         let caldav_lm = t(2026, 2, 1, 9, 0, 0);
 
         let mut entry = make_paired_entry(
             uuid, &caldav_uid, "pending", tw_modified,
-            "NEEDS-ACTION", caldav_lm, Some(last_sync),
+            "NEEDS-ACTION", caldav_lm,
         );
         // Different content so TW wins (content not identical).
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -977,7 +947,7 @@ mod tests {
         let caldav_uid = Uuid::new_v4().to_string();
         let entry = make_paired_entry(
             uuid, &caldav_uid, "deleted", t(2026, 2, 1, 10, 0, 0),
-            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0), None,
+            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
         );
         let mut ir = vec![entry];
 
@@ -996,7 +966,7 @@ mod tests {
         let caldav_uid = Uuid::new_v4().to_string();
         let mut entry = make_paired_entry(
             uuid, &caldav_uid, "pending", t(2026, 2, 1, 10, 0, 0),
-            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0), None,
+            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
         );
         entry.cyclic = true;
         let mut ir = vec![entry];
@@ -1017,11 +987,10 @@ mod tests {
         let caldav_uid = Uuid::new_v4().to_string();
         let tw_modified = t(2026, 2, 1, 10, 0, 0);
         let caldav_lm = t(2026, 2, 1, 9, 0, 0);
-        let last_sync = t(2026, 2, 1, 8, 0, 0);
 
         let mut ir = vec![make_paired_entry(
             uuid, &caldav_uid, "completed", tw_modified,
-            "NEEDS-ACTION", caldav_lm, Some(last_sync),
+            "NEEDS-ACTION", caldav_lm,
         )];
 
         let tw = make_tw_adapter(MockTaskRunner::new());
@@ -1041,11 +1010,10 @@ mod tests {
         let caldav_uid = Uuid::new_v4().to_string();
         let tw_modified = t(2026, 2, 1, 8, 0, 0);
         let caldav_lm = t(2026, 2, 1, 10, 0, 0);
-        let last_sync = t(2026, 2, 1, 9, 0, 0);
 
         let mut ir = vec![make_paired_entry(
             uuid, &caldav_uid, "pending", tw_modified,
-            "COMPLETED", caldav_lm, Some(last_sync),
+            "COMPLETED", caldav_lm,
         )];
 
         let mock_tw = MockTaskRunner::new();

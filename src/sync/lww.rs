@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 
 use crate::types::{IREntry, PlannedOp, RelType, Side, SkipReason, UpdateReason};
 
-const LAST_SYNC_PROP: &str = "X-CALDAWARRIOR-LAST-SYNC";
 const WAIT_PROP: &str = "X-TASKWARRIOR-WAIT";
 
 // ---------------------------------------------------------------------------
@@ -44,24 +43,6 @@ fn parse_ical_dt(s: &str) -> Option<DateTime<Utc>> {
     NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%S")
         .ok()
         .map(|ndt| ndt.and_utc())
-}
-
-/// Read the `X-CALDAWARRIOR-LAST-SYNC` timestamp from the VTODO's extra props.
-/// Returns Unix epoch (`1970-01-01T00:00:00Z`) if the property is absent or
-/// cannot be parsed — making any TW modification appear "newer" and ensuring
-/// TW wins on the very first sync.
-fn get_last_sync(entry: &IREntry) -> DateTime<Utc> {
-    entry
-        .fetched_vtodo
-        .as_ref()
-        .and_then(|fv| {
-            fv.vtodo
-                .extra_props
-                .iter()
-                .find(|p| p.name.eq_ignore_ascii_case(LAST_SYNC_PROP))
-                .and_then(|p| parse_ical_dt(&p.value))
-        })
-        .unwrap_or(DateTime::<Utc>::UNIX_EPOCH)
 }
 
 // ---------------------------------------------------------------------------
@@ -170,13 +151,9 @@ fn content_identical(entry: &IREntry, now: DateTime<Utc>) -> bool {
 /// primary loop-prevention mechanism.
 ///
 /// **Layer 1 (LWW timestamp):**
-/// - `TW.modified > X-CALDAWARRIOR-LAST-SYNC` → TW wins.
-/// - `CalDAV.LAST-MODIFIED > TW.modified` → CalDAV wins.
-/// - Otherwise → TW wins (authoritative tiebreaker).
-///
-/// The `X-CALDAWARRIOR-LAST-SYNC` property must be written to the VTODO
-/// (as `TW.modified`) on **every CalDAV write** by the write-back layer so
-/// that the LAST-SYNC guard remains accurate across syncs.
+/// - `TW.modified` (fallback `TW.entry`) vs `VTODO.LAST-MODIFIED` (fallback `VTODO.DTSTAMP`).
+/// - `CalDAV timestamp > TW timestamp` → CalDAV wins.
+/// - `CalDAV timestamp absent` or `TW timestamp >= CalDAV timestamp` → TW wins (authoritative tiebreaker).
 ///
 /// **DTSTAMP:** Used as a fallback when `LAST-MODIFIED` is absent — the iCalendar
 /// parser now captures DTSTAMP into `VTODO.dtstamp`. If both are absent, CalDAV
@@ -207,18 +184,6 @@ pub fn resolve_lww(entry: IREntry, now: DateTime<Utc>) -> PlannedOp {
     // TW modification timestamp (fall back to entry timestamp if modified is None).
     let tw_modified = tw.modified.unwrap_or(tw.entry);
 
-    // LAST-SYNC stored in CalDAV VTODO (defaults to epoch when absent = first sync).
-    let last_sync = get_last_sync(&entry);
-
-    // TW wins when modified after the last sync point.
-    if tw_modified > last_sync {
-        return PlannedOp::ResolveConflict {
-            entry,
-            winner: Side::Tw,
-            reason: UpdateReason::LwwTwWins,
-        };
-    }
-
     // CalDAV wins when its LAST-MODIFIED (or DTSTAMP fallback) is more recent than TW.
     let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
     if let Some(caldav_ts) = caldav_ts {
@@ -246,7 +211,7 @@ pub fn resolve_lww(entry: IREntry, now: DateTime<Utc>) -> PlannedOp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{FetchedVTODO, IcalProp, IREntry, TWTask, VTODO};
+    use crate::types::{FetchedVTODO, IREntry, TWTask, VTODO};
     use chrono::TimeZone;
     use uuid::Uuid;
 
@@ -282,16 +247,7 @@ mod tests {
         summary: &str,
         status: &str,
         last_modified: Option<DateTime<Utc>>,
-        last_sync: Option<DateTime<Utc>>,
     ) -> VTODO {
-        let mut extra_props = vec![];
-        if let Some(ls) = last_sync {
-            extra_props.push(IcalProp {
-                name: LAST_SYNC_PROP.to_string(),
-                params: vec![],
-                value: ls.format("%Y%m%dT%H%M%SZ").to_string(),
-            });
-        }
         VTODO {
             uid: uid.to_string(),
             summary: Some(summary.to_string()),
@@ -305,7 +261,7 @@ mod tests {
             categories: vec![],
             rrule: None,
             depends: vec![],
-            extra_props,
+            extra_props: vec![],
         }
     }
 
@@ -331,10 +287,9 @@ mod tests {
     }
 
     #[test]
-    fn tw_wins_when_modified_after_last_sync() {
+    fn tw_wins_when_modified_is_newer() {
         let uuid = Uuid::new_v4();
-        let last_sync_ts = t(2026, 2, 1, 10, 0, 0);
-        let tw_modified = t(2026, 2, 1, 11, 0, 0); // after last sync
+        let tw_modified = t(2026, 2, 1, 11, 0, 0);
         let caldav_lm = t(2026, 2, 1, 9, 0, 0); // older than TW
 
         let task = make_tw_task(uuid, "Updated task", tw_modified);
@@ -343,7 +298,6 @@ mod tests {
             "Old task", // different content
             "NEEDS-ACTION",
             Some(caldav_lm),
-            Some(last_sync_ts),
         );
         let entry = make_entry(task, vtodo);
         let now = t(2026, 2, 2, 0, 0, 0);
@@ -360,8 +314,7 @@ mod tests {
     #[test]
     fn caldav_wins_when_newer_than_tw() {
         let uuid = Uuid::new_v4();
-        let last_sync_ts = t(2026, 2, 1, 10, 0, 0);
-        let tw_modified = t(2026, 2, 1, 9, 0, 0); // before last sync
+        let tw_modified = t(2026, 2, 1, 9, 0, 0);
         let caldav_lm = t(2026, 2, 1, 12, 0, 0); // newer than TW
 
         let task = make_tw_task(uuid, "Old TW task", tw_modified);
@@ -370,7 +323,6 @@ mod tests {
             "Updated CalDAV task", // different content
             "NEEDS-ACTION",
             Some(caldav_lm),
-            Some(last_sync_ts),
         );
         let entry = make_entry(task, vtodo);
         let now = t(2026, 2, 2, 0, 0, 0);
@@ -395,7 +347,6 @@ mod tests {
             "Buy milk", // identical
             "NEEDS-ACTION",
             Some(ts),
-            Some(t(2026, 2, 1, 9, 0, 0)),
         );
         let entry = make_entry(task, vtodo);
         let now = t(2026, 2, 2, 0, 0, 0);
@@ -407,40 +358,37 @@ mod tests {
     }
 
     #[test]
-    fn no_last_sync_tw_wins() {
-        // First sync: LAST-SYNC absent → defaults to epoch → TW.modified > epoch → TW wins.
+    fn tw_wins_on_equal_timestamps() {
+        // Scenario (b): TW.modified == LAST-MODIFIED → TW wins (equality prefers local edit).
         let uuid = Uuid::new_v4();
-        let tw_modified = t(2026, 2, 1, 10, 0, 0);
+        let ts = t(2026, 2, 1, 10, 0, 0);
 
-        let task = make_tw_task(uuid, "New task", tw_modified);
+        let task = make_tw_task(uuid, "TW version", ts);
         let vtodo = make_vtodo(
             &uuid.to_string(),
-            "Different CalDAV content",
+            "CalDAV version", // different content so Layer 2 doesn't fire
             "NEEDS-ACTION",
-            Some(t(2026, 2, 1, 9, 0, 0)),
-            None, // no LAST-SYNC prop
+            Some(ts), // equal timestamp
         );
         let entry = make_entry(task, vtodo);
         let now = t(2026, 2, 2, 0, 0, 0);
 
         match resolve_lww(entry, now) {
             PlannedOp::ResolveConflict { winner, reason, .. } => {
-                assert!(matches!(winner, Side::Tw));
+                assert!(matches!(winner, Side::Tw), "TW should win on equal timestamps");
                 assert!(matches!(reason, UpdateReason::LwwTwWins));
             }
-            other => panic!("expected TW wins on first sync, got {:?}", other),
+            other => panic!("expected TW wins on equal timestamps, got {:?}", other),
         }
     }
 
     #[test]
     fn regression_caldav_wins_then_identical_on_resync() {
         // Sync 1: CalDAV wins.
-        // TW was last modified at 8am; last sync was at 9am (TW hasn't changed since);
-        // CalDAV was updated at 10am (newer than TW) → CalDAV wins.
+        // TW was last modified at 8am; CalDAV was updated at 10am (newer than TW) → CalDAV wins.
         let uuid = Uuid::new_v4();
         let tw_modified = t(2026, 2, 1, 8, 0, 0);
         let caldav_lm = t(2026, 2, 1, 10, 0, 0);
-        let last_sync_ts = t(2026, 2, 1, 9, 0, 0); // after TW.modified
 
         let task_before = make_tw_task(uuid, "Old TW content", tw_modified);
         let vtodo_before = make_vtodo(
@@ -448,7 +396,6 @@ mod tests {
             "Updated CalDAV content",
             "NEEDS-ACTION",
             Some(caldav_lm),
-            Some(last_sync_ts),
         );
         let entry_before = make_entry(task_before, vtodo_before);
         let now = t(2026, 2, 2, 0, 0, 0);
@@ -472,7 +419,6 @@ mod tests {
             "Updated CalDAV content", // same as TW now
             "NEEDS-ACTION",
             Some(caldav_lm),     // CalDAV unchanged
-            Some(last_sync_ts),  // LAST-SYNC still at old value
         );
         let entry_after = make_entry(task_after, vtodo_after);
 
@@ -499,7 +445,6 @@ mod tests {
             "My task",
             "NEEDS-ACTION", // normalizes to "pending"
             Some(ts),
-            Some(t(2026, 2, 1, 9, 0, 0)),
         );
         let entry = make_entry(task, vtodo);
         let now = t(2026, 2, 2, 0, 0, 0);
@@ -514,11 +459,8 @@ mod tests {
     fn no_last_modified_no_dtstamp_tw_wins_tiebreaker() {
         // When both LAST-MODIFIED and DTSTAMP are absent, CalDAV timestamp comparison
         // is skipped entirely and TW wins via tiebreaker.
-        //
-        // Scenario: TW modified BEFORE last_sync, CalDAV has neither LAST-MODIFIED nor DTSTAMP.
         let uuid = Uuid::new_v4();
-        let last_sync_ts = t(2026, 2, 1, 10, 0, 0);
-        let tw_modified = t(2026, 2, 1, 8, 0, 0); // before last_sync
+        let tw_modified = t(2026, 2, 1, 8, 0, 0);
 
         let task = make_tw_task(uuid, "Task content", tw_modified);
         let vtodo = make_vtodo(
@@ -526,7 +468,6 @@ mod tests {
             "Different CalDAV content", // different content so Layer 2 doesn't fire
             "NEEDS-ACTION",
             None, // LAST-MODIFIED absent
-            Some(last_sync_ts),
         );
         // vtodo.dtstamp is also None (struct literal via make_vtodo)
         let entry = make_entry(task, vtodo);
@@ -544,10 +485,9 @@ mod tests {
 
     #[test]
     fn no_last_modified_dtstamp_fallback_caldav_wins() {
-        // When LAST-MODIFIED is absent but DTSTAMP is present and newer than TW, CalDAV wins.
+        // Scenario (e): LAST-MODIFIED absent, DTSTAMP present and newer than TW → CalDAV wins.
         let uuid = Uuid::new_v4();
-        let last_sync_ts = t(2026, 2, 1, 9, 0, 0);
-        let tw_modified = t(2026, 2, 1, 8, 0, 0); // before last_sync
+        let tw_modified = t(2026, 2, 1, 8, 0, 0);
         let dtstamp_ts = t(2026, 2, 1, 11, 0, 0); // newer than TW
 
         let task = make_tw_task(uuid, "Task content", tw_modified);
@@ -556,7 +496,6 @@ mod tests {
             "Updated CalDAV content", // different content so Layer 2 doesn't fire
             "NEEDS-ACTION",
             None, // LAST-MODIFIED absent
-            Some(last_sync_ts),
         );
         vtodo.dtstamp = Some(dtstamp_ts);
         let entry = make_entry(task, vtodo);
@@ -568,6 +507,88 @@ mod tests {
                 assert!(matches!(reason, UpdateReason::LwwCalDavWins));
             }
             other => panic!("expected CalDAV wins via DTSTAMP fallback, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn tw_modified_none_falls_back_to_entry() {
+        // Scenario (f): TW.modified=None → falls back to TW.entry for the comparison.
+        // TW.entry = 2026-01-01 09:00:00, CalDAV LAST-MODIFIED = 2026-01-01 08:00:00 (older).
+        // Expected: TW wins because TW.entry > LAST-MODIFIED.
+        let uuid = Uuid::new_v4();
+        let entry_ts = t(2026, 1, 1, 9, 0, 0);
+        let caldav_lm = t(2026, 1, 1, 8, 0, 0); // older than TW entry
+
+        // Build TWTask manually so we can set modified=None.
+        let task = TWTask {
+            uuid,
+            status: "pending".to_string(),
+            description: "TW entry fallback task".to_string(),
+            entry: entry_ts,
+            modified: None, // explicitly None
+            due: None,
+            scheduled: None,
+            wait: None,
+            until: None,
+            end: None,
+            caldavuid: None,
+            priority: None,
+            project: None,
+            tags: None,
+            recur: None,
+            urgency: None,
+            id: None,
+            depends: vec![],
+        };
+        let vtodo = make_vtodo(
+            &uuid.to_string(),
+            "CalDAV content", // different from TW so Layer 2 doesn't fire
+            "NEEDS-ACTION",
+            Some(caldav_lm),
+        );
+        let entry = make_entry(task, vtodo);
+        let now = t(2026, 2, 2, 0, 0, 0);
+
+        match resolve_lww(entry, now) {
+            PlannedOp::ResolveConflict { winner, reason, .. } => {
+                assert!(
+                    matches!(winner, Side::Tw),
+                    "TW should win when modified=None and entry > LAST-MODIFIED"
+                );
+                assert!(matches!(reason, UpdateReason::LwwTwWins));
+            }
+            other => panic!(
+                "expected TW wins via entry fallback, got {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn identical_content_skips_even_when_tw_newer() {
+        // Scenario (g): Layer 2 (content-identical) fires before Layer 1 (LWW timestamp).
+        // TW.modified > LAST-MODIFIED, but all 8 tracked fields are identical →
+        // must return Skip(Identical), NOT ResolveConflict.
+        let uuid = Uuid::new_v4();
+        let tw_modified = t(2026, 2, 1, 12, 0, 0);
+        let caldav_lm = t(2026, 2, 1, 9, 0, 0); // older — TW would win LWW
+
+        let task = make_tw_task(uuid, "Identical content", tw_modified);
+        let vtodo = make_vtodo(
+            &uuid.to_string(),
+            "Identical content", // same as TW — Layer 2 should fire
+            "NEEDS-ACTION",
+            Some(caldav_lm),
+        );
+        let entry = make_entry(task, vtodo);
+        let now = t(2026, 2, 2, 0, 0, 0);
+
+        match resolve_lww(entry, now) {
+            PlannedOp::Skip { reason: SkipReason::Identical, .. } => {}
+            other => panic!(
+                "expected Skip(Identical) — Layer 2 must fire before Layer 1, got {:?}",
+                other
+            ),
         }
     }
 }
