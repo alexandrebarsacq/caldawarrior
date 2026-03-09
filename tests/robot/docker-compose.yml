@@ -1,0 +1,32 @@
+services:
+  radicale:
+    image: tomsquest/docker-radicale:3.3.0.0
+    volumes:
+      - ./radicale.config:/etc/radicale/config:ro
+      - ./htpasswd:/etc/radicale/htpasswd:ro
+    environment:
+      TZ: UTC
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-u", "testuser:testpassword", "http://localhost:5232/"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  robot:
+    build:
+      context: ../..
+      dockerfile: tests/robot/Dockerfile
+    depends_on:
+      radicale:
+        condition: service_healthy
+    environment:
+      RADICALE_URL: http://radicale:5232
+      RADICALE_USER: testuser
+      RADICALE_PASSWORD: testpassword
+      TZ: UTC
+      PYTHONPATH: /tests/resources
+    user: "${CURRENT_UID:-1000}:${CURRENT_GID:-1000}"
+    volumes:
+      - ./:/tests:ro
+      - ./results:/results
+    command: robot --outputdir /results /tests/suites/

@@ -1,2 +1,6 @@
 /target
 tests/integration/specs/
+
+# Robot Framework test results
+tests/robot/results/
+!tests/robot/results/.gitkeep

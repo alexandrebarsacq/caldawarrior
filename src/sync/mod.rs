@@ -37,8 +37,23 @@ pub fn run_sync<R: TaskRunner>(
     dry_run: bool,
     now: DateTime<Utc>,
 ) -> SyncResult {
+    // Filter out completed/deleted TW tasks that have no caldavuid and are older
+    // than the configured cutoff, so they are not pushed to CalDAV.
+    let cutoff_dt = now - chrono::Duration::days(i64::from(config.completed_cutoff_days));
+    let filtered: Vec<TWTask> = tw_tasks
+        .iter()
+        .filter(|t| {
+            if (t.status == "completed" || t.status == "deleted") && t.caldavuid.is_none() {
+                t.end.map(|e| e >= cutoff_dt).unwrap_or(false)
+            } else {
+                true
+            }
+        })
+        .cloned()
+        .collect();
+
     // Step 1: build IR.
-    let (mut ir, ir_warnings) = build_ir(tw_tasks, vtodos_by_calendar, config);
+    let (mut ir, ir_warnings) = build_ir(&filtered, vtodos_by_calendar, config);
 
     // Step 2: resolve dependencies.
     let dep_warnings = resolve_dependencies(&mut ir);

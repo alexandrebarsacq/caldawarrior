@@ -299,6 +299,48 @@ import it into TaskWarrior using `task import`. Then run a normal sync.
 
 ---
 
+## Testing
+
+caldawarrior has two test layers. Both require Docker Compose v2 (`docker compose`, not `docker-compose`).
+
+### Rust Integration Tests (white-box)
+
+Unit and integration tests written in Rust that test internal logic directly against a real Radicale server in Docker:
+
+```bash
+make test-integration
+# equivalent: cargo test --test integration
+```
+
+### Robot Framework Blackbox Tests (black-box)
+
+Behavioral end-to-end tests driven by the compiled `caldawarrior` binary. The suite is fully
+self-contained — no host Rust, Python, or TaskWarrior installation required. Everything runs
+inside Docker.
+
+```bash
+make test-robot
+```
+
+Results are written to `tests/robot/results/`. Open `tests/robot/results/report.html` in a
+browser to see per-scenario pass/fail/skip status.
+
+To rebuild the Docker images (e.g. after changing `Dockerfile`):
+
+```bash
+make build-robot
+```
+
+To run both suites in sequence:
+
+```bash
+make test-all
+```
+
+Scenario documentation and traceability: [`tests/robot/docs/CATALOG.md`](tests/robot/docs/CATALOG.md)
+
+---
+
 ## v2 Roadmap
 
 The following capabilities are planned for the v2 release:

@@ -1,0 +1,7 @@
+# Exclude large and irrelevant paths from Docker build context
+.git/
+target/
+tests/robot/results/
+*.md
+.dockerignore
+.gitignore
