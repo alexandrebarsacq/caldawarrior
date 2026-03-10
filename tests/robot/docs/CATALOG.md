@@ -1431,6 +1431,198 @@ verified by the Robot test using a regex pattern: `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9
 
 ---
 
+### S-64 · Field Mapping — CalDAV SUMMARY-only VTODO Creates TW Task With Matching Description
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-64 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV SUMMARY-only VTODO Creates TW Task With Matching Description` |
+| **skip-unimplemented** | No |
+| **Status** | ⏳ Pending |
+
+**User Story**
+
+Alice creates a CalDAV VTODO with only `SUMMARY` set (no `DESCRIPTION` line). She runs
+`caldawarrior sync` and finds a TW task was created with `description` equal to the SUMMARY value.
+
+**Setup**
+- TW: empty
+- CalDAV: 1 VTODO with `SUMMARY:Buy oat milk`, no `DESCRIPTION` property
+
+**Expected Stdout**
+```
+Synced: 0 created, 0 updated in CalDAV; 1 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected TW State**
+1 pending task with `description == "Buy oat milk"` and `caldavuid` set to the VTODO UID
+
+**Notes**
+Verifies that when no DESCRIPTION is present the SUMMARY is used as-is for the TW description.
+
+---
+
+### S-65 · Field Mapping — CalDAV DESCRIPTION-only VTODO Creates TW Task With Sentinel And Annotation
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-65 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV DESCRIPTION-only VTODO Creates TW Task With Sentinel And Annotation` |
+| **skip-unimplemented** | No |
+| **Status** | ⏳ Pending |
+
+**User Story**
+
+Alice creates a CalDAV VTODO with `DESCRIPTION` set but no `SUMMARY` line at all. She runs
+`caldawarrior sync` and finds a TW task created with description `"(no title)"` and an annotation
+containing the DESCRIPTION text.
+
+**Setup**
+- TW: empty
+- CalDAV: 1 VTODO with `DESCRIPTION:A note about milk`, no `SUMMARY` property
+
+**Expected Stdout**
+```
+Synced: 0 created, 0 updated in CalDAV; 1 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected TW State**
+1 pending task with `description == "(no title)"` and at least one annotation with description
+`"A note about milk"`
+
+**Notes**
+When SUMMARY is absent, caldawarrior uses a sentinel title to keep TW happy (tasks must have a
+description). The actual content is preserved as an annotation.
+
+---
+
+### S-66 · Field Mapping — TW Task With Annotation Syncs To CalDAV With SUMMARY And DESCRIPTION
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-66 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Task With Annotation Syncs To CalDAV With SUMMARY And DESCRIPTION` |
+| **skip-unimplemented** | No |
+| **Status** | ⏳ Pending |
+
+**User Story**
+
+Alice creates a TW task with description `"Pick up groceries"` and adds an annotation
+`"Don't forget the milk"`. After sync the CalDAV VTODO has `SUMMARY` equal to the TW description
+and `DESCRIPTION` equal to the annotation text — confirming they are not duplicated.
+
+**Setup**
+- TW: 1 pending task with description `"Pick up groceries"` and annotation `"Don't forget the milk"`
+- CalDAV: empty
+
+**Expected Stdout**
+```
+Synced: 1 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+1 VTODO with `SUMMARY:Pick up groceries`, `DESCRIPTION:Don't forget the milk`, and
+`SUMMARY != DESCRIPTION`
+
+**Notes**
+Verifies the mapping: TW description → VTODO SUMMARY, TW annotation → VTODO DESCRIPTION.
+The two fields must remain distinct.
+
+---
+
+### S-67 · Field Mapping — CalDAV PRIORITY Maps to TW Priority Field
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-67 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV PRIORITY Maps To TW Priority Field` |
+| **skip-unimplemented** | No |
+| **Status** | ⏳ Pending |
+
+**User Story**
+
+Alice creates three CalDAV VTODOs with `PRIORITY:1`, `PRIORITY:5`, and `PRIORITY:9`. After sync
+she finds TW tasks with priority `H`, `M`, and `L` respectively. She also creates a TW task with
+priority `H` and confirms it syncs to CalDAV with `PRIORITY:1`.
+
+**Setup (CalDAV → TW)**
+- CalDAV: 3 VTODOs with PRIORITY 1, 5, and 9
+- TW: empty
+
+**Expected TW State (CalDAV → TW)**
+3 TW tasks with priority H, M, L respectively
+
+**Setup (TW → CalDAV)**
+- TW: 1 pending task with priority H
+- CalDAV: empty
+
+**Expected CalDAV State (TW → CalDAV)**
+1 VTODO with `PRIORITY:1`
+
+**Exit Code**
+0 (each sync)
+
+**Notes**
+RFC 5545 PRIORITY values: 1–4 = high, 5 = medium, 6–9 = low. caldawarrior maps 1→H, 5→M, 9→L
+and the reverse for TW→CalDAV.
+
+---
+
+### S-68 · Field Mapping — CalDAV-only Task in Project Calendar Sets TW Project
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-68 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV-Only Task In Project Calendar Sets TW Project` |
+| **skip-unimplemented** | No |
+| **Status** | ⏳ Pending |
+
+**User Story**
+
+Alice's CalDAV setup has a separate "work" calendar mapped to `project = "work"` in the
+caldawarrior config. She creates a VTODO in the work calendar and runs sync. The resulting TW
+task has `project == "work"`.
+
+**Setup**
+- CalDAV: 1 VTODO in the "work" calendar collection
+- TW: empty
+- Config: two `[[calendar]]` entries — `project = "default"` and `project = "work"`
+
+**Expected TW State**
+1 pending task with `project == "work"` and `caldavuid` set
+
+**Exit Code**
+0
+
+**Notes**
+This test is skipped unless the `MULTI_CALENDAR_ENABLED` environment variable is set.
+Multi-calendar support requires multiple `[[calendar]]` entries in the caldawarrior config.
+
+---
+
 ## Bulk Operations (S-70 to S-79)
 
 ### S-70 · Bulk Operations — 5 TW Tasks Synced to CalDAV on First Sync
@@ -1976,6 +2168,11 @@ mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
 | S-61 | Field Mapping | `TW Due Date Syncs To VTODO DUE Property` | No | ✅ Pass |
 | S-62 | Field Mapping | `CalDAV VTODO Summary Syncs To TW Description` | No | ✅ Pass |
 | S-63 | Field Mapping | `Caldavuid UDA Stores CalDAV UID As UUID4 String` | No | ✅ Pass |
+| S-64 | Field Mapping | `CalDAV SUMMARY-only VTODO Creates TW Task With Matching Description` | No | ⏳ Pending |
+| S-65 | Field Mapping | `CalDAV DESCRIPTION-only VTODO Creates TW Task With Sentinel And Annotation` | No | ⏳ Pending |
+| S-66 | Field Mapping | `TW Task With Annotation Syncs To CalDAV With SUMMARY And DESCRIPTION` | No | ⏳ Pending |
+| S-67 | Field Mapping | `CalDAV PRIORITY Maps To TW Priority Field` | No | ⏳ Pending |
+| S-68 | Field Mapping | `CalDAV-Only Task In Project Calendar Sets TW Project` | No | ⏳ Pending |
 | S-70 | Bulk Operations | `Five TW Tasks Created In CalDAV On First Sync` | No | ⚠️ No test |
 | S-71 | Bulk Operations | `Five CalDAV VTODOs Created In TW On First Sync` | No | ⚠️ No test |
 | S-72 | Bulk Operations | `Mixed First Sync Links Tasks From Both Sides` | No | ⚠️ No test |
@@ -1989,4 +2186,4 @@ mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
 | S-84 | Multi-Sync Journey | `Repeated CalDAV Edits Propagate To TW Each Sync` | No | ⚠️ No test |
 | S-85 | Multi-Sync Journey | `Full Task Lifecycle Create Edit From Both Sides Then Complete` | No | ⚠️ No test |
 
-**Total scenarios: 42** (37 active, 5 skip-unimplemented)
+**Total scenarios: 47** (42 active, 5 skip-unimplemented)

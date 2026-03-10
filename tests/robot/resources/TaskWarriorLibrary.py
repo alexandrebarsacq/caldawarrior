@@ -182,6 +182,34 @@ class TaskWarriorLibrary:
                 f"{result.stderr.strip()}"
             )
 
+    def add_tw_annotation(self, uuid, text):
+        """Add an annotation to an existing TaskWarrior task.
+
+        Runs 'task <uuid> annotate <text>'.
+
+        Args:
+            uuid: The UUID string of the task to annotate.
+            text: The annotation text to add.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If the command exits with a non-zero status.
+        """
+        result = subprocess.run(
+            ["task", uuid, "annotate", text],
+            env=self._tw_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise AssertionError(
+                f"task {uuid} annotate failed (exit {result.returncode}): "
+                f"{result.stderr.strip()}"
+            )
+
     def complete_tw_task(self, uuid):
         """Mark a TaskWarrior task as completed.
 
@@ -258,6 +286,45 @@ class TaskWarriorLibrary:
             )
         return int(result.stdout.strip())
 
+    def get_tw_task_by_caldavuid(self, caldavuid):
+        """Find a TW task by its caldavuid UDA field and return its data dict.
+
+        Runs 'task caldavuid:<caldavuid> export' and returns the parsed task
+        dictionary.
+
+        Args:
+            caldavuid: The CalDAV UID string to search for.
+
+        Returns:
+            A dict containing the task's fields as exported by TaskWarrior.
+
+        Raises:
+            AssertionError: If no task with the given caldavuid is found or
+                the command fails.
+        """
+        result = subprocess.run(
+            ["task", f"caldavuid:{caldavuid}", "export"],
+            env=self._tw_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise AssertionError(
+                f"task caldavuid:{caldavuid} export failed (exit {result.returncode}): "
+                f"{result.stderr.strip()}"
+            )
+        try:
+            tasks = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            raise AssertionError(
+                f"Failed to parse JSON from 'task caldavuid:{caldavuid} export': {e}\n"
+                f"Output was: {result.stdout.strip()}"
+            )
+        if not tasks:
+            raise AssertionError(f"No TW task found with caldavuid:{caldavuid}")
+        return tasks[0]
+
     def tw_task_should_have_caldavuid(self, uuid):
         """Assert that a task has a non-empty caldavuid UDA field.
 
@@ -320,6 +387,31 @@ class TaskWarriorLibrary:
             raise AssertionError(
                 f"Task {uuid} field '{field}' mismatch: "
                 f"expected {expected_value!r} but got {actual_value!r}"
+            )
+
+    def tw_task_should_have_annotation(self, uuid, expected_description):
+        """Assert that a task has at least one annotation matching the given description.
+
+        TaskWarrior stores annotations as a list of dicts, each with an
+        'entry' timestamp and a 'description' string.
+
+        Args:
+            uuid:                 The UUID string of the task to inspect.
+            expected_description: The annotation description to look for.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If no annotation with the given description is found.
+        """
+        task = self.get_tw_task(uuid)
+        annotations = task.get('annotations', [])
+        descriptions = [a.get('description', '') for a in annotations]
+        if expected_description not in descriptions:
+            raise AssertionError(
+                f"Task {uuid} has no annotation with description {expected_description!r}. "
+                f"Actual annotations: {descriptions}"
             )
 
     def tw_task_should_depend_on(self, uuid, expected_dependency_uuid):

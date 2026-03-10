@@ -185,6 +185,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         }
     }
 
@@ -200,6 +201,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 
@@ -216,6 +218,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         };
@@ -234,6 +237,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 
@@ -418,6 +422,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         };
@@ -436,6 +441,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         };
         assert_eq!(get_description(&entry), "no-summary-uid");
     }
@@ -453,6 +459,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         };
         assert_eq!(get_description(&entry), uuid.to_string());
     }
@@ -469,6 +476,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         };
         assert_eq!(get_description(&entry), "unknown");
     }

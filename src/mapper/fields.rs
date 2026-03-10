@@ -12,8 +12,12 @@ use crate::types::{IcalProp, RelType, TWTask, VTODO};
 /// Fields produced when mapping a [`TWTask`] → CalDAV direction.
 #[derive(Debug, Clone)]
 pub struct TwCalDavFields {
-    /// TW `description` → VTODO `DESCRIPTION`.
-    pub description: Option<String>,
+    /// TW `description` → VTODO `SUMMARY`.
+    pub summary: Option<String>,
+    /// TW `annotations` → VTODO `DESCRIPTION` (newline-joined).
+    pub annotations: Option<String>,
+    /// TW `priority` → VTODO `PRIORITY` (iCal integer: 1=high, 5=medium, 9=low).
+    pub priority: Option<u8>,
     /// TW `due` → VTODO `DUE`.
     pub due: Option<DateTime<Utc>>,
     /// TW `scheduled` → VTODO `DTSTART`.
@@ -31,8 +35,12 @@ pub struct TwCalDavFields {
 /// Fields produced when mapping a CalDAV [`VTODO`] → TW direction.
 #[derive(Debug, Clone)]
 pub struct CalDavTwFields {
-    /// VTODO `DESCRIPTION` → TW `description`. Empty string when absent.
+    /// VTODO `SUMMARY` → TW `description`. Empty string when absent.
     pub description: String,
+    /// VTODO `DESCRIPTION` → TW `annotations` (raw text, split by caller).
+    pub annotations_text: Option<String>,
+    /// VTODO `PRIORITY` → TW `priority` (TW format: "H", "M", "L").
+    pub priority: Option<String>,
     /// VTODO `DUE` → TW `due`.
     pub due: Option<DateTime<Utc>>,
     /// VTODO `DTSTART` → TW `scheduled`.
@@ -52,7 +60,24 @@ pub struct CalDavTwFields {
 /// The caller is responsible for merging these fields into a [`VTODO`];
 /// status mapping is handled separately in [`crate::mapper::status`].
 pub fn tw_to_caldav_fields(task: &TWTask, now: DateTime<Utc>) -> TwCalDavFields {
-    let description = Some(task.description.clone());
+    // "(no title)" is the reverse sentinel used when no SUMMARY was present on
+    // the CalDAV side — map back to None so we don't push a literal sentinel.
+    let summary = if task.description == "(no title)" {
+        None
+    } else {
+        Some(task.description.clone())
+    };
+
+    // Map the first annotation's text to VTODO DESCRIPTION.
+    let annotations = task.annotations.first().map(|a| a.description.clone());
+
+    // Map TW priority letter to iCal integer (RFC 5545: 1=high, 5=medium, 9=low).
+    let priority = task.priority.as_deref().and_then(|p| match p {
+        "H" => Some(1u8),
+        "M" => Some(5u8),
+        "L" => Some(9u8),
+        _ => None,
+    });
 
     let due = task.due;
     let dtstart = task.scheduled;
@@ -84,7 +109,9 @@ pub fn tw_to_caldav_fields(task: &TWTask, now: DateTime<Utc>) -> TwCalDavFields 
         .collect();
 
     TwCalDavFields {
-        description,
+        summary,
+        annotations,
+        priority,
         due,
         dtstart,
         wait,
@@ -101,7 +128,22 @@ pub fn tw_to_caldav_fields(task: &TWTask, now: DateTime<Utc>) -> TwCalDavFields 
 /// The caller merges these fields into a [`TWTask`]; status mapping is
 /// handled separately in [`crate::mapper::status`].
 pub fn caldav_to_tw_fields(vtodo: &VTODO) -> CalDavTwFields {
-    let description = vtodo.description.clone().unwrap_or_default();
+    // VTODO SUMMARY → TW description; fall back to sentinel when absent.
+    let description = vtodo.summary.clone().unwrap_or_else(|| "(no title)".to_string());
+
+    // VTODO DESCRIPTION → TW annotations_text; treat empty/whitespace as absent.
+    let annotations_text = vtodo.description.as_deref().and_then(|s| {
+        let trimmed = s.trim();
+        if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+    });
+
+    // VTODO PRIORITY → TW priority letter.
+    let priority = vtodo.priority.and_then(|p| match p {
+        1..=4 => Some("H".to_string()),
+        5 => Some("M".to_string()),
+        6..=9 => Some("L".to_string()),
+        _ => None,
+    });
 
     let due = vtodo.due;
     let scheduled = vtodo.dtstart;
@@ -128,6 +170,8 @@ pub fn caldav_to_tw_fields(vtodo: &VTODO) -> CalDavTwFields {
 
     CalDavTwFields {
         description,
+        annotations_text,
+        priority,
         due,
         scheduled,
         wait,
@@ -155,6 +199,7 @@ fn parse_ical_datetime_utc(s: &str) -> Option<DateTime<Utc>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::TwAnnotation;
     use chrono::{Duration, Utc};
     use uuid::Uuid;
 
@@ -178,6 +223,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         }
     }
 
@@ -194,6 +240,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         }
@@ -205,7 +252,7 @@ mod tests {
     fn tw_description_mapped() {
         let task = make_tw_task();
         let fields = tw_to_caldav_fields(&task, Utc::now());
-        assert_eq!(fields.description.as_deref(), Some("Buy milk"));
+        assert_eq!(fields.summary.as_deref(), Some("Buy milk"));
     }
 
     #[test]
@@ -298,10 +345,11 @@ mod tests {
     }
 
     #[test]
-    fn caldav_absent_description_becomes_empty_string() {
-        let vtodo = make_vtodo(); // description = None
+    fn caldav_absent_summary_becomes_no_title_sentinel() {
+        let mut vtodo = make_vtodo();
+        vtodo.summary = None;
         let fields = caldav_to_tw_fields(&vtodo);
-        assert_eq!(fields.description, "");
+        assert_eq!(fields.description, "(no title)");
     }
 
     #[test]
@@ -361,6 +409,126 @@ mod tests {
         assert!(fields.scheduled.is_none());
         assert!(fields.wait.is_none());
         assert!(fields.depends.is_empty());
+    }
+
+    // ── Summary / annotations / priority — CalDAV → TW ───────────────────────
+
+    #[test]
+    fn caldav_summary_mapped_to_tw_description() {
+        let mut vtodo = make_vtodo();
+        vtodo.summary = Some("Task X".to_string());
+        vtodo.description = None;
+        let fields = caldav_to_tw_fields(&vtodo);
+        assert_eq!(fields.description, "Task X");
+        assert!(fields.annotations_text.is_none());
+    }
+
+    #[test]
+    fn caldav_both_summary_and_description_present() {
+        let mut vtodo = make_vtodo();
+        vtodo.summary = Some("Task X".to_string());
+        vtodo.description = Some("a note".to_string());
+        let fields = caldav_to_tw_fields(&vtodo);
+        assert_eq!(fields.description, "Task X");
+        assert_eq!(fields.annotations_text.as_deref(), Some("a note"));
+    }
+
+    #[test]
+    fn caldav_description_mapped_to_annotations_text() {
+        let mut vtodo = make_vtodo();
+        vtodo.description = Some("check expiry".to_string());
+        let fields = caldav_to_tw_fields(&vtodo);
+        assert_eq!(fields.annotations_text.as_deref(), Some("check expiry"));
+    }
+
+    #[test]
+    fn caldav_no_summary_gives_no_title_sentinel() {
+        let mut vtodo = make_vtodo();
+        vtodo.summary = None;
+        let fields = caldav_to_tw_fields(&vtodo);
+        assert_eq!(fields.description, "(no title)");
+    }
+
+    #[test]
+    fn priority_caldav_to_tw_1_gives_h() {
+        let mut vtodo = make_vtodo();
+        vtodo.priority = Some(1);
+        let fields = caldav_to_tw_fields(&vtodo);
+        assert_eq!(fields.priority.as_deref(), Some("H"));
+    }
+
+    #[test]
+    fn priority_caldav_2_3_4_give_h() {
+        for p in [2u8, 3, 4] {
+            let mut vtodo = make_vtodo();
+            vtodo.priority = Some(p);
+            let fields = caldav_to_tw_fields(&vtodo);
+            assert_eq!(fields.priority.as_deref(), Some("H"), "priority {p} should map to H");
+        }
+    }
+
+    #[test]
+    fn priority_caldav_5_gives_m_9_gives_l_0_gives_none() {
+        let cases: &[(u8, Option<&str>)] = &[(5, Some("M")), (9, Some("L")), (0, None)];
+        for &(p, expected) in cases {
+            let mut vtodo = make_vtodo();
+            vtodo.priority = Some(p);
+            let fields = caldav_to_tw_fields(&vtodo);
+            assert_eq!(fields.priority.as_deref(), expected, "priority {p}");
+        }
+        // None input
+        let mut vtodo = make_vtodo();
+        vtodo.priority = None;
+        let fields = caldav_to_tw_fields(&vtodo);
+        assert!(fields.priority.is_none());
+    }
+
+    // ── Summary / annotations / priority — TW → CalDAV ───────────────────────
+
+    #[test]
+    fn tw_description_becomes_summary() {
+        let task = make_tw_task(); // description = "Buy milk"
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert_eq!(fields.summary.as_deref(), Some("Buy milk"));
+    }
+
+    #[test]
+    fn tw_no_title_becomes_absent_summary() {
+        let mut task = make_tw_task();
+        task.description = "(no title)".to_string();
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert!(fields.summary.is_none(), "sentinel should collapse to None");
+    }
+
+    #[test]
+    fn tw_annotations_become_description() {
+        let mut task = make_tw_task();
+        task.annotations = vec![TwAnnotation {
+            entry: Utc::now(),
+            description: "check expiry date".to_string(),
+        }];
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert_eq!(fields.annotations.as_deref(), Some("check expiry date"));
+    }
+
+    #[test]
+    fn priority_tw_to_caldav_h() {
+        let mut task = make_tw_task();
+        task.priority = Some("H".to_string());
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert_eq!(fields.priority, Some(1u8));
+
+        task.priority = Some("M".to_string());
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert_eq!(fields.priority, Some(5u8));
+
+        task.priority = Some("L".to_string());
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert_eq!(fields.priority, Some(9u8));
+
+        task.priority = None;
+        let fields = tw_to_caldav_fields(&task, Utc::now());
+        assert!(fields.priority.is_none());
     }
 
     // ── Round-trip ────────────────────────────────────────────────────────────

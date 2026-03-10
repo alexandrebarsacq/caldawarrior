@@ -65,6 +65,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         };

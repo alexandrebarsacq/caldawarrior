@@ -179,6 +179,7 @@ mod tests {
             urgency: None,
             id: None,
             depends,
+            annotations: vec![],
         });
         IREntry {
             tw_uuid: Some(tw_uuid),
@@ -190,6 +191,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 

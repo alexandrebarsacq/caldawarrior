@@ -359,7 +359,6 @@ impl TestHarness {
         let mut vtodo = caldawarrior::ical::from_icalendar_string(&ical_text)
             .expect("parse VTODO for modification");
         vtodo.summary = Some(new_summary.to_string());
-        vtodo.description = Some(new_summary.to_string());
         vtodo.last_modified = Some(Utc::now());
         let new_ical = caldawarrior::ical::to_icalendar_string(&vtodo);
 

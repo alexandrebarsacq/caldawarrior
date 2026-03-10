@@ -498,6 +498,7 @@ fn parse_vtodo_from_ical(ical: &str) -> Option<VTODO> {
         completed,
         categories,
         rrule,
+        priority: None,
         depends: vec![],
         extra_props: vec![],
     })
@@ -636,6 +637,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         }

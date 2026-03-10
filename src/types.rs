@@ -127,6 +127,17 @@ pub mod tw_depends {
 }
 
 // ---------------------------------------------------------------------------
+// TwAnnotation — a single TaskWarrior annotation entry
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TwAnnotation {
+    #[serde(with = "tw_date")]
+    pub entry: DateTime<Utc>,
+    pub description: String,
+}
+
+// ---------------------------------------------------------------------------
 // TWTask — mirrors the JSON produced by `task export`
 // ---------------------------------------------------------------------------
 
@@ -180,6 +191,9 @@ pub struct TWTask {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty", with = "tw_depends")]
     pub depends: Vec<Uuid>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub annotations: Vec<TwAnnotation>,
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +237,8 @@ pub struct VTODO {
     #[serde(default)]
     pub categories: Vec<String>,
     pub rrule: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<u8>,
     #[serde(default)]
     pub depends: Vec<(RelType, String)>,
     #[serde(default)]
@@ -270,6 +286,9 @@ pub struct IREntry {
     /// True if the CalDAV side needs to be written back after sync decision.
     #[serde(default)]
     pub dirty_caldav: bool,
+    /// Project name injected from config for CalDAV-only new tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -394,5 +413,38 @@ mod tests {
         let back = serde_json::to_string(&task).expect("serialize");
         let task2: TWTask = serde_json::from_str(&back).expect("re-deserialize");
         assert_eq!(task.uuid, task2.uuid);
+    }
+
+    #[test]
+    fn tw_task_annotation_roundtrip() {
+        let json = r#"{
+            "uuid": "550e8400-e29b-41d4-a716-446655440001",
+            "status": "pending",
+            "description": "Buy milk",
+            "entry": "20260309T120000Z",
+            "annotations": [{"entry":"20260309T120000Z","description":"check expiry date"}]
+        }"#;
+        let task: TWTask = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(task.annotations.len(), 1);
+        assert_eq!(task.annotations[0].description, "check expiry date");
+        // round-trip: annotations field serialized and deserialized
+        let back = serde_json::to_string(&task).expect("serialize");
+        let task2: TWTask = serde_json::from_str(&back).expect("re-deserialize");
+        assert_eq!(task2.annotations[0].description, "check expiry date");
+    }
+
+    #[test]
+    fn tw_task_no_annotations_defaults_empty() {
+        let json = r#"{
+            "uuid": "550e8400-e29b-41d4-a716-446655440002",
+            "status": "pending",
+            "description": "Buy groceries",
+            "entry": "20260309T120000Z"
+        }"#;
+        let task: TWTask = serde_json::from_str(json).expect("deserialize");
+        assert!(task.annotations.is_empty());
+        // empty vec should not appear in serialized output (skip_serializing_if = "Vec::is_empty")
+        let back = serde_json::to_string(&task).expect("serialize");
+        assert!(!back.contains("\"annotations\""), "empty annotations should be omitted: {}", back);
     }
 }

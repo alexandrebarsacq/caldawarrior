@@ -103,6 +103,7 @@ fn dependency_sync_tw_to_caldav() {
         completed: None,
         categories: vec![],
         rrule: None,
+        priority: None,
         depends: vec![(caldawarrior::types::RelType::DependsOn, caldavuid_a.clone())],
         extra_props: vec![],
     };

@@ -33,6 +33,7 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
     let mut completed: Option<DateTime<Utc>> = None;
     let mut categories: Vec<String> = vec![];
     let mut rrule: Option<String> = None;
+    let mut priority: Option<u8> = None;
     let mut depends: Vec<(RelType, String)> = vec![];
     let mut extra_props: Vec<IcalProp> = vec![];
 
@@ -73,6 +74,9 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
                 }
             }
             "RRULE" => rrule = Some(value.clone()),
+            "PRIORITY" => {
+                priority = value.trim().parse::<u8>().ok().filter(|&v| v > 0);
+            }
             "RELATED-TO" => {
                 // Find RELTYPE param
                 let reltype_val = params
@@ -116,6 +120,7 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
         completed,
         categories,
         rrule,
+        priority,
         depends,
         extra_props,
     })
@@ -166,6 +171,9 @@ pub fn to_icalendar_string(vtodo: &VTODO) -> String {
     }
     if let Some(ref rrule) = vtodo.rrule {
         lines.push(format!("RRULE:{}", rrule));
+    }
+    if let Some(p) = vtodo.priority {
+        lines.push(format!("PRIORITY:{}", p));
     }
 
     // RELATED-TO / depends
@@ -463,6 +471,7 @@ mod tests {
             completed: None,
             categories: vec!["work".to_string(), "personal".to_string()],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         }
@@ -500,6 +509,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         };
@@ -545,6 +555,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         };
@@ -674,5 +685,70 @@ mod tests {
             "error message should mention UID: {}",
             err_msg
         );
+    }
+
+    #[test]
+    fn priority_parsed_from_vtodo() {
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:prio-test-001\r\nSUMMARY:High priority\r\nPRIORITY:3\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        assert_eq!(vtodo.priority, Some(3));
+    }
+
+    #[test]
+    fn priority_zero_treated_as_absent() {
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:prio-test-002\r\nSUMMARY:No priority\r\nPRIORITY:0\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        assert_eq!(vtodo.priority, None);
+    }
+
+    #[test]
+    fn priority_serialized_to_vtodo() {
+        let vtodo = VTODO {
+            uid: "prio-ser-001".to_string(),
+            summary: Some("Task".to_string()),
+            description: None,
+            status: None,
+            last_modified: None,
+            dtstamp: None,
+            dtstart: None,
+            due: None,
+            completed: None,
+            categories: vec![],
+            rrule: None,
+            priority: Some(1),
+            depends: vec![],
+            extra_props: vec![],
+        };
+        let s = to_icalendar_string(&vtodo);
+        assert!(s.contains("PRIORITY:1"), "serialized output should contain PRIORITY:1: {}", s);
+        // Round-trip: parse back and verify priority preserved
+        let parsed = from_icalendar_string(&s).expect("parse");
+        assert_eq!(parsed.priority, Some(1));
+    }
+
+    #[test]
+    fn priority_absent_not_emitted() {
+        let vtodo = VTODO {
+            uid: "prio-absent-001".to_string(),
+            summary: Some("Task".to_string()),
+            description: None,
+            status: None,
+            last_modified: None,
+            dtstamp: None,
+            dtstart: None,
+            due: None,
+            completed: None,
+            categories: vec![],
+            rrule: None,
+            priority: None,
+            depends: vec![],
+            extra_props: vec![],
+        };
+        let s = to_icalendar_string(&vtodo);
+        assert!(!s.contains("PRIORITY"), "serialized output should not contain PRIORITY when None: {}", s);
     }
 }

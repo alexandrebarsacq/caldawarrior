@@ -123,6 +123,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         }
     }
 

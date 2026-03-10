@@ -78,8 +78,9 @@ fn content_identical(entry: &IREntry, now: DateTime<Utc>) -> bool {
         return false;
     }
 
-    // 2. DESCRIPTION — field mapper maps TW description → VTODO DESCRIPTION.
-    if vtodo.description.as_deref().unwrap_or("") != tw.description.as_str() {
+    // 2. DESCRIPTION — CalDAV DESCRIPTION holds TW first annotation text (or None when absent).
+    let tw_first_annotation = tw.annotations.first().map(|a| a.description.as_str());
+    if vtodo.description.as_deref() != tw_first_annotation {
         return false;
     }
 
@@ -239,6 +240,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         }
     }
 
@@ -251,7 +253,7 @@ mod tests {
         VTODO {
             uid: uid.to_string(),
             summary: Some(summary.to_string()),
-            description: Some(summary.to_string()),
+            description: None, // no annotations on test tasks
             status: Some(status.to_string()),
             last_modified,
             dtstamp: None,
@@ -260,6 +262,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         }
@@ -283,6 +286,7 @@ mod tests {
             calendar_url: None,
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 
@@ -539,6 +543,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         };
         let vtodo = make_vtodo(
             &uuid.to_string(),

@@ -24,6 +24,31 @@ fn resolve_calendar_url(project: Option<&str>, config: &Config) -> Option<String
         .map(|c| c.url.clone())
 }
 
+/// The sentinel project name used when a calendar has no specific project assignment.
+const DEFAULT_PROJECT: &str = "default";
+
+/// Resolves a calendar URL back to the project name configured for that calendar.
+///
+/// Returns `None` when:
+/// - No calendar entry matches the URL (unknown calendar).
+/// - The matching calendar's project is `DEFAULT_PROJECT` (callers treat this as "no project").
+///
+/// URL comparison is done after stripping trailing slashes from both sides.
+fn resolve_project_from_url(url: &str, config: &Config) -> Option<String> {
+    let normalized = url.trim_end_matches('/');
+    config
+        .calendars
+        .iter()
+        .find(|c| c.url.trim_end_matches('/') == normalized)
+        .and_then(|c| {
+            if c.project == DEFAULT_PROJECT {
+                None
+            } else {
+                Some(c.project.clone())
+            }
+        })
+}
+
 /// Builds the Intermediate Representation (IR) from TaskWarrior tasks and CalDAV VTODOs.
 ///
 /// Classification rules:
@@ -99,6 +124,7 @@ pub fn build_ir(
                     calendar_url,
                     dirty_tw: false,
                     dirty_caldav: false,
+                    project: None,
                 });
             }
             Some(uid) => {
@@ -114,6 +140,7 @@ pub fn build_ir(
                         calendar_url: Some(calendar_url),
                         dirty_tw: false,
                         dirty_caldav: false,
+                        project: None,
                     });
                 } else {
                     // ORPHANED: caldavuid set but VTODO not found.
@@ -138,6 +165,7 @@ pub fn build_ir(
                         calendar_url,
                         dirty_tw: false,
                         dirty_caldav: false,
+                        project: None,
                     });
                 }
             }
@@ -152,6 +180,7 @@ pub fn build_ir(
             "COMPLETED" | "CANCELLED" => None,
             _ => Some(Uuid::new_v4()), // NEEDS-ACTION, IN-PROCESS, or unrecognised
         };
+        let project = resolve_project_from_url(&calendar_url, config);
         entries.push(IREntry {
             tw_uuid,
             caldav_uid: Some(fetched.vtodo.uid.clone()),
@@ -162,6 +191,7 @@ pub fn build_ir(
             calendar_url: Some(calendar_url),
             dirty_tw: false,
             dirty_caldav: false,
+            project,
         });
     }
 
@@ -221,6 +251,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         }
     }
 
@@ -240,6 +271,7 @@ mod tests {
                 completed: None,
                 categories: vec![],
                 rrule: rrule.map(str::to_owned),
+                priority: None,
                 depends: vec![],
                 extra_props: vec![],
             },
@@ -405,6 +437,34 @@ mod tests {
 
         assert!(warnings.is_empty());
         assert_eq!(entries[0].calendar_url.as_deref(), Some("https://dav.example.com/work/"));
+    }
+
+    #[test]
+    fn caldav_only_entry_gets_project_from_config() {
+        let config = make_config(vec![("work", "http://dav/work/")]);
+        let uid = "test-uid-work";
+        let fetched = make_vtodo(uid, Some("NEEDS-ACTION"), None);
+        let mut vtodos: HashMap<String, Vec<FetchedVTODO>> = HashMap::new();
+        vtodos.insert("http://dav/work/".to_string(), vec![fetched]);
+
+        let (entries, _) = build_ir(&[], &vtodos, &config);
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].project, Some("work".to_string()));
+    }
+
+    #[test]
+    fn caldav_only_entry_with_default_project_gets_none() {
+        let config = make_config(vec![("default", "http://dav/cal/")]);
+        let uid = "test-uid-default";
+        let fetched = make_vtodo(uid, Some("NEEDS-ACTION"), None);
+        let mut vtodos: HashMap<String, Vec<FetchedVTODO>> = HashMap::new();
+        vtodos.insert("http://dav/cal/".to_string(), vec![fetched]);
+
+        let (entries, _) = build_ir(&[], &vtodos, &config);
+
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].project.is_none());
     }
 
     #[test]

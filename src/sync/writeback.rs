@@ -11,7 +11,7 @@ use crate::mapper::status::{tw_to_caldav_status, TwToCalDavStatus};
 use crate::sync::lww::resolve_lww;
 use crate::types::{
     FetchedVTODO, IcalProp, IREntry, PlannedOp, RelType, Side, SkipReason, SyncResult, TWTask,
-    UpdateReason, VTODO,
+    TwAnnotation, UpdateReason, VTODO,
 };
 use crate::tw_adapter::{TaskRunner, TwAdapter};
 
@@ -31,6 +31,48 @@ fn build_caldav_index(ir: &[IREntry]) -> HashMap<String, Uuid> {
             }
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Annotation Slot Invariant helper
+// ---------------------------------------------------------------------------
+
+/// Merge CalDAV DESCRIPTION text into a TW annotations list.
+///
+/// The invariant: slot 0 is owned by CalDAV sync; slots 1+ are user-created
+/// and must never be touched.
+///
+/// | annotations_text | base.len() | result                                    |
+/// |------------------|------------|-------------------------------------------|
+/// | None             | 0          | []                                        |
+/// | None             | ≥1         | base unchanged                            |
+/// | Some(t)          | 0          | [TwAnnotation(t)]                         |
+/// | Some(t)          | 1, t same  | base unchanged (no-op)                    |
+/// | Some(t)          | 1, t diff  | [TwAnnotation(t)]                         |
+/// | Some(t)          | ≥2         | [TwAnnotation(t)] + base[1..]             |
+fn merge_annotations(
+    text: Option<&str>,
+    base: Vec<TwAnnotation>,
+    now: DateTime<Utc>,
+) -> Vec<TwAnnotation> {
+    match text {
+        None => base,
+        Some(t) => {
+            let new_ann = TwAnnotation {
+                entry: now,
+                description: t.to_string(),
+            };
+            if base.is_empty() {
+                vec![new_ann]
+            } else if base[0].description == t {
+                base // identical — no-op
+            } else {
+                let mut result = vec![new_ann];
+                result.extend_from_slice(&base[1..]);
+                result
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -75,8 +117,8 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
 
     VTODO {
         uid,
-        summary: fields.description.clone(),
-        description: fields.description,
+        summary: fields.summary,
+        description: fields.annotations,
         status: status_str,
         last_modified: Some(tw.modified.unwrap_or(tw.entry)),
         dtstamp: None,
@@ -85,6 +127,7 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         completed: completed_dt,
         categories: base.map(|v| v.categories.clone()).unwrap_or_default(),
         rrule: None, // TW tasks are never recurring (recurring entries are skipped pre-writeback)
+        priority: fields.priority,
         // Use resolved_depends (CalDAV UIDs from IR resolution phase) rather than
         // tw_to_caldav_fields().depends (raw TW UUIDs) as specified by the AC.
         depends: entry
@@ -109,6 +152,7 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
 fn build_tw_task_from_caldav(
     entry: &IREntry,
     caldav_uid_to_tw_uuid: &HashMap<String, Uuid>,
+    now: DateTime<Utc>,
 ) -> TWTask {
     let vtodo = &entry
         .fetched_vtodo
@@ -142,7 +186,7 @@ fn build_tw_task_from_caldav(
         uuid: tw_uuid,
         status: status.to_string(),
         description: fields.description,
-        entry: base.map(|t| t.entry).unwrap_or_else(Utc::now),
+        entry: base.map(|t| t.entry).unwrap_or(now),
         modified: base.and_then(|t| t.modified),
         due: fields.due,
         scheduled: fields.scheduled,
@@ -150,13 +194,18 @@ fn build_tw_task_from_caldav(
         until: base.and_then(|t| t.until),
         end: vtodo.completed,
         caldavuid: entry.caldav_uid.clone(),
-        priority: base.and_then(|t| t.priority.clone()),
-        project: base.and_then(|t| t.project.clone()),
+        priority: fields.priority,
+        project: base.map_or_else(|| entry.project.clone(), |t| t.project.clone()),
         tags: base.and_then(|t| t.tags.clone()),
         recur: None,
         urgency: base.and_then(|t| t.urgency),
         id: base.and_then(|t| t.id),
         depends,
+        annotations: merge_annotations(
+            fields.annotations_text.as_deref(),
+            base.map_or_else(Vec::new, |t| t.annotations.clone()),
+            now,
+        ),
     }
 }
 
@@ -482,7 +531,7 @@ fn execute_op<R: TaskRunner>(
 
         // ── Pull CalDAV → TW ─────────────────────────────────────────────────
         PlannedOp::PullFromCalDav(ref e) => {
-            let tw_task = build_tw_task_from_caldav(e, caldav_index);
+            let tw_task = build_tw_task_from_caldav(e, caldav_index, now);
             if !dry_run {
                 if e.tw_task.is_none() {
                     // CalDAV-only new: tw.create() — the ONLY path calling task import.
@@ -546,7 +595,7 @@ fn execute_op<R: TaskRunner>(
                 // CalDAV wins: update TW from CalDAV data.
                 (Side::CalDav, UpdateReason::LwwCalDavWins)
                 | (Side::CalDav, UpdateReason::CalDavCompletedUpdateTw) => {
-                    let tw_task = build_tw_task_from_caldav(e, caldav_index);
+                    let tw_task = build_tw_task_from_caldav(e, caldav_index, now);
                     if !dry_run {
                         // Always `update` here: existing task on TW side.
                         tw.update(&tw_task)?;
@@ -605,6 +654,7 @@ mod tests {
             urgency: None,
             id: None,
             depends: vec![],
+            annotations: vec![],
         }
     }
 
@@ -612,7 +662,7 @@ mod tests {
         VTODO {
             uid: uid.to_string(),
             summary: Some("Task".to_string()),
-            description: Some("Task".to_string()),
+            description: None, // no annotations on test tasks
             status: Some(status.to_string()),
             last_modified: Some(last_modified),
             dtstamp: None,
@@ -621,6 +671,7 @@ mod tests {
             completed: None,
             categories: vec![],
             rrule: None,
+            priority: None,
             depends: vec![],
             extra_props: vec![],
         }
@@ -649,6 +700,7 @@ mod tests {
             calendar_url: Some("https://dav.example.com/cal/".to_string()),
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 
@@ -665,6 +717,7 @@ mod tests {
             calendar_url: Some("https://dav.example.com/cal/".to_string()),
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 
@@ -683,6 +736,7 @@ mod tests {
             calendar_url: Some("https://dav.example.com/cal/".to_string()),
             dirty_tw: false,
             dirty_caldav: false,
+            project: None,
         }
     }
 
@@ -694,6 +748,59 @@ mod tests {
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
+
+    // ── Unit tests for build_vtodo_from_tw / build_tw_task_from_caldav ────────
+
+    #[test]
+    fn build_vtodo_from_tw_uses_summary_not_description() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_tw_only_entry(uuid, &caldav_uid, "pending");
+        let tw = entry.tw_task.as_mut().unwrap();
+        tw.description = "Buy milk".to_string();
+        tw.annotations = vec![]; // no annotations → vtodo.description should be None
+        let tw_snapshot = entry.tw_task.clone().unwrap();
+
+        let now = t(2026, 2, 2, 0, 0, 0);
+        let vtodo = build_vtodo_from_tw(&entry, &tw_snapshot, now);
+
+        assert_eq!(vtodo.summary, Some("Buy milk".to_string()));
+        assert!(vtodo.description.is_none(), "no annotations → DESCRIPTION must be None");
+    }
+
+    #[test]
+    fn build_tw_task_caldav_only_injects_project() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_caldav_only_entry(&caldav_uid, "NEEDS-ACTION", Some(uuid));
+        entry.project = Some("work".to_string());
+        // vtodo summary so description is mapped correctly
+        if let Some(ref mut fv) = entry.fetched_vtodo {
+            fv.vtodo.summary = Some("A task".to_string());
+        }
+
+        let now = t(2026, 2, 2, 0, 0, 0);
+        let tw_task = build_tw_task_from_caldav(&entry, &HashMap::new(), now);
+
+        assert_eq!(tw_task.project, Some("work".to_string()));
+    }
+
+    #[test]
+    fn build_tw_task_reads_summary_as_description() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_caldav_only_entry(&caldav_uid, "NEEDS-ACTION", Some(uuid));
+        if let Some(ref mut fv) = entry.fetched_vtodo {
+            fv.vtodo.summary = Some("X".to_string());
+        }
+
+        let now = t(2026, 2, 2, 0, 0, 0);
+        let tw_task = build_tw_task_from_caldav(&entry, &HashMap::new(), now);
+
+        assert_eq!(tw_task.description, "X");
+    }
+
+    // ── Integration-style tests (apply_writeback) ─────────────────────────────
 
     #[test]
     fn tw_only_pending_pushes_to_caldav() {

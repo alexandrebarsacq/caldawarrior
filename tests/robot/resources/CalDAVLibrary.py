@@ -202,6 +202,82 @@ class CalDAVLibrary:
         )
         self._check_response(response)
 
+    def put_vtodo_with_priority(self, collection_url, uid, summary, priority, status='NEEDS-ACTION'):
+        """Create or overwrite a VTODO resource with a PRIORITY property set.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier for the VTODO (used as the filename).
+            summary: Human-readable summary/title of the task.
+            priority: Integer priority value (1=high, 5=medium, 9=low per RFC 5545).
+            status: VTODO status string, defaults to NEEDS-ACTION.
+
+        Raises:
+            AssertionError: On non-2xx HTTP response.
+        """
+        now = datetime.utcnow().strftime('%Y%m%dT%H%M%S')
+        today = datetime.utcnow().strftime('%Y%m%d')
+        ical_text = (
+            'BEGIN:VCALENDAR\r\n'
+            'VERSION:2.0\r\n'
+            'PRODID:-//caldawarrior-tests//EN\r\n'
+            'BEGIN:VTODO\r\n'
+            f'UID:{uid}\r\n'
+            f'SUMMARY:{summary}\r\n'
+            f'PRIORITY:{priority}\r\n'
+            f'STATUS:{status}\r\n'
+            f'DTSTAMP:{now}Z\r\n'
+            f'DTSTART:{today}\r\n'
+            'END:VTODO\r\n'
+            'END:VCALENDAR\r\n'
+        )
+        url = f"{collection_url}{uid}.ics"
+        response = self._session.put(
+            url,
+            data=ical_text.encode('utf-8'),
+            headers={'Content-Type': 'text/calendar; charset=utf-8'},
+        )
+        self._check_response(response)
+
+    def put_vtodo_with_description(self, collection_url, uid, description, status='NEEDS-ACTION'):
+        """Create or overwrite a VTODO with DESCRIPTION set and no SUMMARY line.
+
+        Builds an iCalendar VTODO string that omits the SUMMARY property
+        entirely, allowing tests to verify behaviour when only DESCRIPTION
+        is present.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier for the VTODO (used as the filename).
+            description: The DESCRIPTION property value.
+            status: VTODO status string, defaults to NEEDS-ACTION.
+
+        Raises:
+            AssertionError: On non-2xx HTTP response.
+        """
+        now = datetime.utcnow().strftime('%Y%m%dT%H%M%S')
+        today = datetime.utcnow().strftime('%Y%m%d')
+        ical_text = (
+            'BEGIN:VCALENDAR\r\n'
+            'VERSION:2.0\r\n'
+            'PRODID:-//caldawarrior-tests//EN\r\n'
+            'BEGIN:VTODO\r\n'
+            f'UID:{uid}\r\n'
+            f'DESCRIPTION:{description}\r\n'
+            f'STATUS:{status}\r\n'
+            f'DTSTAMP:{now}Z\r\n'
+            f'DTSTART:{today}\r\n'
+            'END:VTODO\r\n'
+            'END:VCALENDAR\r\n'
+        )
+        url = f"{collection_url}{uid}.ics"
+        response = self._session.put(
+            url,
+            data=ical_text.encode('utf-8'),
+            headers={'Content-Type': 'text/calendar; charset=utf-8'},
+        )
+        self._check_response(response)
+
     def get_vtodo_raw(self, collection_url, uid):
         """Retrieve the raw iCalendar text of a VTODO resource.
 
@@ -275,7 +351,6 @@ class CalDAVLibrary:
         for component in cal.walk():
             if component.name == 'VTODO':
                 component['SUMMARY'] = new_summary
-                component['DESCRIPTION'] = new_summary
                 component['LAST-MODIFIED'] = vDatetime(
                     datetime.now(tz=timezone.utc) + timedelta(seconds=2)
                 )
