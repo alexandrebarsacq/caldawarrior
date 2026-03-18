@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Fix CATEGORIES comma-escaping and TW tags-to-CATEGORIES mapping (AUDIT-01)
+- [x] 01-01-PLAN.md — Fix CATEGORIES comma-escaping and TW tags-to-CATEGORIES mapping (AUDIT-01)
 - [ ] 01-02-PLAN.md — Replace XML parser with quick-xml NsReader and add ETag normalization (AUDIT-02, AUDIT-04)
 - [ ] 01-03-PLAN.md — Fix error context swallowing and add --fail-fast flag (AUDIT-03)
 

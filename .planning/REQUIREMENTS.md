@@ -9,7 +9,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Code Audit
 
-- [ ] **AUDIT-01**: CATEGORIES comma-escaping bug fixed — tags containing commas no longer silently split
+- [x] **AUDIT-01**: CATEGORIES comma-escaping bug fixed — tags containing commas no longer silently split
 - [ ] **AUDIT-02**: XML parser replaced with proper XML library — CalDAV responses from non-Radicale servers parse correctly
 - [ ] **AUDIT-03**: Error messages improved — no swallowed context from unwrap_or_default paths
 - [ ] **AUDIT-04**: ETag normalization handles weak ETags — no 412 loops on Nextcloud/Baikal
@@ -85,7 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 | Phase 1 | Pending |
+| AUDIT-01 | Phase 1 | Complete |
 | AUDIT-02 | Phase 1 | Pending |
 | AUDIT-03 | Phase 1 | Pending |
 | AUDIT-04 | Phase 1 | Pending |
