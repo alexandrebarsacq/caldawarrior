@@ -66,8 +66,8 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
                 completed = parse_datetime_with_params(&value, &params);
             }
             "CATEGORIES" => {
-                for cat in value.split(',') {
-                    let cat = cat.trim().to_string();
+                for cat in split_on_unescaped_commas(&value) {
+                    let cat = unescape_text(cat.trim());
                     if !cat.is_empty() {
                         categories.push(cat);
                     }
@@ -167,7 +167,8 @@ pub fn to_icalendar_string(vtodo: &VTODO) -> String {
         lines.push(format!("COMPLETED:{}", format_datetime(completed)));
     }
     if !vtodo.categories.is_empty() {
-        lines.push(format!("CATEGORIES:{}", vtodo.categories.join(",")));
+        let escaped: Vec<String> = vtodo.categories.iter().map(|c| escape_text(c)).collect();
+        lines.push(format!("CATEGORIES:{}", escaped.join(",")));
     }
     if let Some(ref rrule) = vtodo.rrule {
         lines.push(format!("RRULE:{}", rrule));
