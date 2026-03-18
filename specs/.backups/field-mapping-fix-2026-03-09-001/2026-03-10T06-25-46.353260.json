@@ -1,0 +1,1455 @@
+{
+  "spec_id": "field-mapping-fix-2026-03-09-001",
+  "title": "field-mapping-fix",
+  "generated": "2026-03-09T13:26:37.008448Z",
+  "last_updated": "2026-03-10T06:14:56.541886Z",
+  "metadata": {
+    "description": "",
+    "mission": "",
+    "objectives": [],
+    "assumptions": [],
+    "success_criteria": [],
+    "constraints": [],
+    "risks": [],
+    "open_questions": [],
+    "plan_path": ".plans/field-mapping-fix-2026-03-09.md",
+    "plan_review_path": ".plan-reviews/field-mapping-fix-2026-03-09-review.md"
+  },
+  "progress_percentage": 90,
+  "status": "in_progress",
+  "current_phase": "phase-6",
+  "hierarchy": {
+    "spec-root": {
+      "type": "spec",
+      "title": "field-mapping-fix",
+      "status": "in_progress",
+      "parent": null,
+      "children": [
+        "phase-1",
+        "phase-2",
+        "phase-3",
+        "phase-4",
+        "phase-5",
+        "phase-6",
+        "phase-7"
+      ],
+      "total_tasks": 33,
+      "completed_tasks": 30,
+      "metadata": {
+        "purpose": "",
+        "category": "implementation"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-1": {
+      "type": "phase",
+      "title": "Data Structures (types.rs)",
+      "status": "completed",
+      "parent": "spec-root",
+      "children": [
+        "task-1-1",
+        "task-1-2",
+        "task-1-3",
+        "verify-1-1"
+      ],
+      "total_tasks": 4,
+      "completed_tasks": 4,
+      "metadata": {
+        "purpose": "",
+        "description": "Add TwAnnotation struct and annotations field to TWTask; add priority field to VTODO; add project field to IREntry.",
+        "needs_journaling": true,
+        "completed_at": "2026-03-09T13:53:01.289546Z"
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-2"
+        ],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-1-1": {
+      "type": "task",
+      "title": "Add TwAnnotation struct and annotations to TWTask",
+      "status": "completed",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add TwAnnotation struct with #[derive(Debug, Clone, Serialize, Deserialize)], entry: DateTime<Utc> (with tw_date), description: String. Add annotations: Vec<TwAnnotation> to TWTask with #[serde(default, skip_serializing_if = \"Vec::is_empty\")]. Add roundtrip test.",
+        "file_path": "src/types.rs",
+        "acceptance_criteria": [
+          "TwAnnotation has entry: DateTime<Utc> (with tw_date), description: String",
+          "TWTask.annotations is Vec<TwAnnotation> with serde(default, skip_serializing_if)",
+          "Existing tw_task_roundtrip_minimal test still passes",
+          "New roundtrip test asserts annotations[0].description == \"check expiry date\""
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T13:38:25.926162Z",
+        "completed_at": "2026-03-09T13:50:14.310885Z",
+        "needs_journaling": false,
+        "actual_hours": 0.2,
+        "journaled_at": "2026-03-09T13:50:14.311317Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-1-2": {
+      "type": "task",
+      "title": "Add priority field to VTODO",
+      "status": "completed",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add #[serde(default, skip_serializing_if = \"Option::is_none\")] pub priority: Option<u8> to VTODO struct.",
+        "file_path": "src/types.rs",
+        "acceptance_criteria": [
+          "VTODO.priority is Option<u8> with skip-if-none serde",
+          "Existing test_round_trip_basic in ical.rs still passes"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T13:50:24.644046Z",
+        "completed_at": "2026-03-09T13:50:31.941610Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T13:50:31.941831Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-1-3": {
+      "type": "task",
+      "title": "Add project field to IREntry",
+      "status": "completed",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add #[serde(default, skip_serializing_if = \"Option::is_none\")] pub project: Option<String> to IREntry struct.",
+        "file_path": "src/types.rs",
+        "acceptance_criteria": [
+          "IREntry.project is Option<String> with serde default and skip-if-none",
+          "All existing IR tests still pass"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T13:50:25.265371Z",
+        "completed_at": "2026-03-09T13:50:44.875607Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T13:50:44.875810Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-1-1": {
+      "type": "verify",
+      "title": "Run cargo test \u2014 Phase 1 verification",
+      "status": "completed",
+      "parent": "phase-1",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Run cargo test and confirm all tests pass.",
+        "file_path": "src/types.rs",
+        "started_at": "2026-03-09T13:50:48.736246Z",
+        "completed_at": "2026-03-09T13:53:01.289405Z",
+        "needs_journaling": false,
+        "actual_hours": 0.04,
+        "journaled_at": "2026-03-09T13:53:01.289641Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-2": {
+      "type": "phase",
+      "title": "iCal Layer (ical.rs)",
+      "status": "completed",
+      "parent": "spec-root",
+      "children": [
+        "task-2-1",
+        "task-2-2",
+        "task-2-3",
+        "verify-2-1"
+      ],
+      "total_tasks": 4,
+      "completed_tasks": 4,
+      "metadata": {
+        "purpose": "",
+        "description": "Parse PRIORITY from VTODO iCal text and serialize it back. Add 4 unit tests.",
+        "needs_journaling": true,
+        "completed_at": "2026-03-09T13:55:25.043467Z"
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-3"
+        ],
+        "blocked_by": [
+          "phase-1"
+        ],
+        "depends": []
+      }
+    },
+    "task-2-1": {
+      "type": "task",
+      "title": "Parse PRIORITY in from_icalendar_string",
+      "status": "completed",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add priority: Option<u8> = None initialization. Add match arm for PRIORITY: value.trim().parse::<u8>().ok().filter(|&v| v > 0). Include priority in Ok(VTODO { ... }) return.",
+        "file_path": "src/ical.rs",
+        "acceptance_criteria": [
+          "VTODO string with PRIORITY:3 -> vtodo.priority == Some(3)",
+          "VTODO string with PRIORITY:0 -> vtodo.priority == None",
+          "VTODO string without PRIORITY -> vtodo.priority == None"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T13:53:42.811645Z",
+        "completed_at": "2026-03-09T13:54:48.790529Z",
+        "needs_journaling": false,
+        "actual_hours": 0.02,
+        "journaled_at": "2026-03-09T13:54:48.790839Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-2": {
+      "type": "task",
+      "title": "Emit PRIORITY in to_icalendar_string",
+      "status": "completed",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "After RRULE emission block, add: if let Some(p) = vtodo.priority { lines.push(format!(\"PRIORITY:{}\", p)); }",
+        "file_path": "src/ical.rs",
+        "acceptance_criteria": [
+          "to_icalendar_string with priority = Some(1) contains PRIORITY:1",
+          "to_icalendar_string with priority = None does NOT contain PRIORITY",
+          "Round-trip: parse -> serialize -> parse preserves priority value"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T13:54:54.494668Z",
+        "completed_at": "2026-03-09T13:55:00.528812Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T13:55:00.528985Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-2-3": {
+      "type": "task",
+      "title": "Add ical.rs unit tests for PRIORITY",
+      "status": "completed",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add 4 tests: priority_parsed_from_vtodo, priority_zero_treated_as_absent, priority_serialized_to_vtodo, priority_absent_not_emitted.",
+        "file_path": "src/ical.rs",
+        "acceptance_criteria": [
+          "All 4 tests pass: priority_parsed_from_vtodo, priority_zero_treated_as_absent, priority_serialized_to_vtodo, priority_absent_not_emitted"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T13:55:05.255129Z",
+        "completed_at": "2026-03-09T13:55:10.949433Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T13:55:10.949579Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-2-1": {
+      "type": "verify",
+      "title": "Run cargo test \u2014 Phase 2 verification",
+      "status": "completed",
+      "parent": "phase-2",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Run cargo test and confirm all tests pass.",
+        "file_path": "src/ical.rs",
+        "started_at": "2026-03-09T13:55:14.788852Z",
+        "completed_at": "2026-03-09T13:55:25.043340Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T13:55:25.043590Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-3": {
+      "type": "phase",
+      "title": "Mapper Layer (mapper/fields.rs)",
+      "status": "completed",
+      "parent": "spec-root",
+      "children": [
+        "task-3-1",
+        "task-3-2",
+        "task-3-3",
+        "task-3-4",
+        "task-3-5",
+        "task-3-6",
+        "verify-3-1"
+      ],
+      "total_tasks": 7,
+      "completed_tasks": 7,
+      "metadata": {
+        "purpose": "",
+        "description": "Rename TwCalDavFields.description to summary; add annotations and priority fields. Fix CalDavTwFields. Update both conversion functions. Add 11 unit tests.",
+        "needs_journaling": true,
+        "completed_at": "2026-03-09T20:46:05.355055Z"
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-4"
+        ],
+        "blocked_by": [
+          "phase-2"
+        ],
+        "depends": []
+      }
+    },
+    "task-3-1": {
+      "type": "task",
+      "title": "Refactor TwCalDavFields struct",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Rename description: Option<String> to summary: Option<String>. Add annotations: Option<String>. Add priority: Option<u8> (iCal integer value 1/5/9).",
+        "file_path": "src/mapper/fields.rs",
+        "acceptance_criteria": [
+          "TwCalDavFields has summary: Option<String>, annotations: Option<String>, priority: Option<u8>",
+          "No field named description on TwCalDavFields"
+        ],
+        "task_category": "refactoring",
+        "complexity": "medium",
+        "started_at": "2026-03-09T14:00:15.857153Z",
+        "completed_at": "2026-03-09T14:01:10.083014Z",
+        "needs_journaling": false,
+        "actual_hours": 0.02,
+        "journaled_at": "2026-03-09T14:01:10.083228Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-2": {
+      "type": "task",
+      "title": "Refactor CalDavTwFields struct",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Fix doc comment on description to say 'VTODO SUMMARY -> TW description'. Add annotations_text: Option<String>. Add priority: Option<String> (TW format).",
+        "file_path": "src/mapper/fields.rs",
+        "acceptance_criteria": [
+          "CalDavTwFields has description: String, annotations_text: Option<String>, priority: Option<String>",
+          "Doc comment on description says 'VTODO SUMMARY -> TW description'"
+        ],
+        "task_category": "refactoring",
+        "complexity": "low",
+        "started_at": "2026-03-09T14:03:10.269795Z",
+        "completed_at": "2026-03-09T14:03:34.210966Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T14:03:34.211133Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-3": {
+      "type": "task",
+      "title": "Update tw_to_caldav_fields function",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Map task.description to summary with (no title) reverse sentinel. Populate annotations from task.annotations.first(). Populate priority: H->1, M->5, L->9.",
+        "file_path": "src/mapper/fields.rs",
+        "acceptance_criteria": [
+          "Task description=\"Buy milk\" -> summary=Some(\"Buy milk\")",
+          "Task description=\"(no title)\" -> summary=None (reverse sentinel)",
+          "Task with annotation {description:\"check expiry\"} -> annotations=Some(\"check expiry\")",
+          "Task with no annotations -> annotations=None",
+          "Task priority=Some(\"H\") -> priority=Some(1u8)",
+          "Task priority=None -> priority=None"
+        ],
+        "task_category": "implementation",
+        "complexity": "medium",
+        "started_at": "2026-03-09T14:10:06.132495Z",
+        "completed_at": "2026-03-09T14:10:26.396879Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T14:10:26.397057Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-4": {
+      "type": "task",
+      "title": "Update caldav_to_tw_fields function",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Change description source to vtodo.summary.unwrap_or(\"(no title)\"). Add annotations_text from vtodo.description filtered for empty/whitespace. Add priority conversion: 1-4->H, 5->M, 6-9->L, _->None.",
+        "file_path": "src/mapper/fields.rs",
+        "acceptance_criteria": [
+          "VTODO summary=Some(\"X\"), description=None -> description==\"X\", annotations_text==None",
+          "VTODO summary=Some(\"X\"), description=Some(\"note\") -> description==\"X\", annotations_text==Some(\"note\")",
+          "VTODO summary=None -> description==\"(no title)\"",
+          "VTODO priority=Some(1) -> Some(\"H\"); Some(2)->Some(\"H\"); Some(5)->Some(\"M\"); Some(9)->Some(\"L\"); None->None"
+        ],
+        "task_category": "implementation",
+        "complexity": "medium",
+        "started_at": "2026-03-09T14:11:22.594959Z",
+        "completed_at": "2026-03-09T14:11:43.095628Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T14:11:43.096232Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-5": {
+      "type": "task",
+      "title": "Update writeback.rs field references after struct rename",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Mechanical find-replace in src/sync/writeback.rs: rename fields.description -> fields.summary so the codebase compiles. No annotation/priority/project logic yet.",
+        "file_path": "src/sync/writeback.rs",
+        "acceptance_criteria": [
+          "cargo test compiles and passes at end of Phase 3",
+          "No functional logic changed - only field name references updated"
+        ],
+        "task_category": "refactoring",
+        "complexity": "low",
+        "started_at": "2026-03-09T14:17:29.689175Z",
+        "completed_at": "2026-03-09T14:17:34.109287Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T14:17:34.109442Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-3-6": {
+      "type": "task",
+      "title": "Add mapper unit tests",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add 11 tests: caldav_summary_mapped_to_tw_description, caldav_both_summary_and_description_present, caldav_description_mapped_to_annotations, caldav_no_summary_gives_no_title_sentinel, tw_description_becomes_summary, tw_no_title_becomes_absent_summary, tw_annotations_become_description, priority_tw_to_caldav_h, priority_caldav_to_tw_1_gives_h, priority_caldav_2_3_4_give_h, priority_caldav_5_gives_m_9_gives_l_0_gives_none.",
+        "file_path": "src/mapper/fields.rs",
+        "acceptance_criteria": [
+          "All 11 new tests pass",
+          "Existing tests updated (fields.description -> fields.summary) and passing"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T14:20:56.653141Z",
+        "completed_at": "2026-03-09T20:41:49.390182Z",
+        "needs_journaling": false,
+        "actual_hours": 6.35,
+        "journaled_at": "2026-03-09T20:41:49.390880Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-3-1": {
+      "type": "verify",
+      "title": "Run cargo test \u2014 Phase 3 verification",
+      "status": "completed",
+      "parent": "phase-3",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Run cargo test and confirm all tests pass.",
+        "file_path": "src/mapper/fields.rs",
+        "started_at": "2026-03-09T20:41:56.061861Z",
+        "completed_at": "2026-03-09T20:46:05.354868Z",
+        "needs_journaling": false,
+        "actual_hours": 0.07,
+        "journaled_at": "2026-03-09T20:46:05.355207Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-4": {
+      "type": "phase",
+      "title": "IR Layer \u2014 Project for CalDAV-only Entries (ir.rs)",
+      "status": "completed",
+      "parent": "spec-root",
+      "children": [
+        "task-4-1",
+        "task-4-2",
+        "task-4-3",
+        "verify-4-1"
+      ],
+      "total_tasks": 4,
+      "completed_tasks": 4,
+      "metadata": {
+        "purpose": "",
+        "description": "Populate IREntry.project for CalDAV-only entries by reverse-looking up the project name from config.calendars.",
+        "needs_journaling": true,
+        "completed_at": "2026-03-09T21:54:36.034366Z"
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-5"
+        ],
+        "blocked_by": [
+          "phase-3"
+        ],
+        "depends": []
+      }
+    },
+    "task-4-1": {
+      "type": "task",
+      "title": "Add resolve_project_from_url helper",
+      "status": "completed",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Define const DEFAULT_PROJECT: &str = \"default\". Add fn resolve_project_from_url(url: &str, config: &Config) -> Option<String> that normalizes URLs (trim_end_matches('/')) and filters out DEFAULT_PROJECT.",
+        "file_path": "src/ir.rs",
+        "acceptance_criteria": [
+          "URL matching project=\"work\" -> Some(\"work\")",
+          "URL matching project=\"default\" -> None",
+          "URL not matching any entry -> None",
+          "URL differing only by trailing slash still matches",
+          "\"Default\" (different case) returns Some(\"Default\") - does not match DEFAULT_PROJECT"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T21:47:50.027621Z",
+        "completed_at": "2026-03-09T21:48:19.067604Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T21:48:19.067923Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-4-2": {
+      "type": "task",
+      "title": "Populate entry.project in build_ir CalDAV-only pass",
+      "status": "completed",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "In the CalDAV-only pass of build_ir, compute let project = resolve_project_from_url(&calendar_url, config) and set project on the new IREntry.",
+        "file_path": "src/ir.rs",
+        "acceptance_criteria": [
+          "CalDAV-only entry with calendar_url matching project=\"work\" -> entry.project = Some(\"work\")",
+          "CalDAV-only entry with calendar_url matching project=\"default\" -> entry.project = None",
+          "TW-only and paired entries still have entry.project = None"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T21:48:31.433003Z",
+        "completed_at": "2026-03-09T21:48:45.752669Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T21:48:45.753038Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-4-3": {
+      "type": "task",
+      "title": "Add IR unit tests for project injection",
+      "status": "completed",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add 2 tests: caldav_only_entry_gets_project_from_config and caldav_only_entry_with_default_project_gets_none.",
+        "file_path": "src/ir.rs",
+        "acceptance_criteria": [
+          "caldav_only_entry_gets_project_from_config: config [(\"work\",\"http://dav/work/\")], VTODO in work calendar -> entry.project == Some(\"work\")",
+          "caldav_only_entry_with_default_project_gets_none: config [(\"default\",\"http://dav/cal/\")], VTODO -> entry.project == None",
+          "Existing IR tests unaffected"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T21:48:58.340857Z",
+        "completed_at": "2026-03-09T21:49:16.273077Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-09T21:49:16.273328Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-4-1": {
+      "type": "verify",
+      "title": "Run cargo test \u2014 Phase 4 verification",
+      "status": "completed",
+      "parent": "phase-4",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Run cargo test and confirm all tests pass.",
+        "file_path": "src/ir.rs",
+        "started_at": "2026-03-09T21:49:20.588548Z",
+        "completed_at": "2026-03-09T21:54:36.034220Z",
+        "needs_journaling": false,
+        "actual_hours": 0.09,
+        "journaled_at": "2026-03-09T21:54:36.034463Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-5": {
+      "type": "phase",
+      "title": "Writeback Layer (sync/writeback.rs)",
+      "status": "completed",
+      "parent": "spec-root",
+      "children": [
+        "task-5-1",
+        "task-5-2",
+        "task-5-3",
+        "task-5-4",
+        "verify-5-1"
+      ],
+      "total_tasks": 5,
+      "completed_tasks": 5,
+      "metadata": {
+        "purpose": "",
+        "description": "Fix build_vtodo_from_tw and build_tw_task_from_caldav; add now parameter; apply Annotation Slot Invariant and LWW merge policy.",
+        "needs_journaling": true,
+        "completed_at": "2026-03-09T22:45:36.530912Z"
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-6"
+        ],
+        "blocked_by": [
+          "phase-4"
+        ],
+        "depends": []
+      }
+    },
+    "task-5-1": {
+      "type": "task",
+      "title": "Add now parameter to build_tw_task_from_caldav",
+      "status": "completed",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add now: DateTime<Utc> parameter. Update two call sites in execute_op (PullFromCalDav and ResolveConflict CalDAVWins). Update test helpers to use a fixed deterministic timestamp.",
+        "file_path": "src/sync/writeback.rs",
+        "acceptance_criteria": [
+          "build_tw_task_from_caldav signature includes now: DateTime<Utc>",
+          "All call sites (production and test) compile and pass now"
+        ],
+        "task_category": "refactoring",
+        "complexity": "low",
+        "started_at": "2026-03-09T22:09:34.895445Z",
+        "completed_at": "2026-03-09T22:10:18.162225Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T22:10:18.162438Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-5-2": {
+      "type": "task",
+      "title": "Fix build_vtodo_from_tw",
+      "status": "completed",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Change summary: fields.description to summary: fields.summary. Change description to fields.annotations. Add priority: fields.priority to VTODO struct literal.",
+        "file_path": "src/sync/writeback.rs",
+        "acceptance_criteria": [
+          "vtodo.summary = fields.summary (may be None for (no title))",
+          "vtodo.description = first annotation text, or None",
+          "vtodo.priority = fields.priority",
+          "vtodo.summary != vtodo.description when no annotations"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T22:27:55.092787Z",
+        "completed_at": "2026-03-09T22:28:13.766081Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T22:28:13.766349Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-5-3": {
+      "type": "task",
+      "title": "Fix build_tw_task_from_caldav \u2014 priority, annotations, project",
+      "status": "completed",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Priority: priority: fields.priority (no fallback). Project: base.map_or_else(|| entry.project.clone(), |t| t.project.clone()). Annotations: implement all 6 branch cases from Annotation Slot Invariant (0/1/>=2 x Some(text)/None).",
+        "file_path": "src/sync/writeback.rs",
+        "acceptance_criteria": [
+          "CalDAV PRIORITY:1 -> TW priority = Some(\"H\")",
+          "CalDAV PRIORITY:None -> TW priority = None (no fallback)",
+          "DESCRIPTION:text, base 0 annotations -> one annotation created",
+          "DESCRIPTION:text, base 1 annotation identical -> no-op",
+          "DESCRIPTION:text, base 1 annotation different -> replaced",
+          "DESCRIPTION:text, base 2+ annotations different -> slot 0 replaced, slots 1+ preserved",
+          "No DESCRIPTION, base has annotations -> no-op",
+          "CalDAV-only entry with entry.project=Some(\"work\") -> TW project=Some(\"work\")",
+          "Paired entry: project inherited from existing TW task"
+        ],
+        "task_category": "implementation",
+        "complexity": "medium",
+        "started_at": "2026-03-09T22:28:39.857440Z",
+        "completed_at": "2026-03-09T22:29:12.456451Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T22:29:12.456786Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-5-4": {
+      "type": "task",
+      "title": "Add writeback unit tests",
+      "status": "completed",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add 3 tests: build_vtodo_from_tw_uses_summary_not_description, build_tw_task_caldav_only_injects_project, build_tw_task_reads_summary_as_description.",
+        "file_path": "src/sync/writeback.rs",
+        "acceptance_criteria": [
+          "build_vtodo_from_tw_uses_summary_not_description: vtodo.summary==Some(\"Buy milk\"), vtodo.description==None",
+          "build_tw_task_caldav_only_injects_project: entry.project=Some(\"work\") -> tw_task.project==Some(\"work\")",
+          "build_tw_task_reads_summary_as_description: vtodo.summary=Some(\"X\") -> tw_task.description==\"X\"",
+          "Existing writeback tests still pass"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T22:29:30.638245Z",
+        "completed_at": "2026-03-09T22:30:00.226078Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T22:30:00.226401Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-5-1": {
+      "type": "verify",
+      "title": "Run cargo test \u2014 Phase 5 verification",
+      "status": "completed",
+      "parent": "phase-5",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Run cargo test and confirm all tests pass.",
+        "file_path": "src/sync/writeback.rs",
+        "started_at": "2026-03-09T22:30:06.372165Z",
+        "completed_at": "2026-03-09T22:45:36.530718Z",
+        "needs_journaling": false,
+        "actual_hours": 0.26,
+        "journaled_at": "2026-03-09T22:45:36.531067Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-6": {
+      "type": "phase",
+      "title": "Robot Framework Tests (S-64\u2013S-68)",
+      "status": "in_progress",
+      "parent": "spec-root",
+      "children": [
+        "task-6-1",
+        "task-6-2",
+        "task-6-3",
+        "task-6-4",
+        "task-6-5",
+        "task-6-6",
+        "verify-6-1"
+      ],
+      "total_tasks": 7,
+      "completed_tasks": 6,
+      "metadata": {
+        "purpose": "",
+        "description": "Add 5 new blackbox test scenarios to tests/robot/suites/07_field_mapping.robot."
+      },
+      "dependencies": {
+        "blocks": [
+          "phase-7"
+        ],
+        "blocked_by": [
+          "phase-5"
+        ],
+        "depends": []
+      }
+    },
+    "task-6-1": {
+      "type": "task",
+      "title": "Add S-64: CalDAV SUMMARY-only task \u2192 TW description",
+      "status": "completed",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Create a CalDAV VTODO with SUMMARY set, no DESCRIPTION line; sync; assert TW task description == SUMMARY value.",
+        "file_path": "tests/robot/suites/07_field_mapping.robot",
+        "acceptance_criteria": [
+          "VTODO with SUMMARY:Buy oat milk -> TW description == \"Buy oat milk\""
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T23:24:48.204777Z",
+        "completed_at": "2026-03-09T23:26:49.043703Z",
+        "needs_journaling": false,
+        "actual_hours": 0.03,
+        "journaled_at": "2026-03-09T23:26:49.043921Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-2": {
+      "type": "task",
+      "title": "Add S-65: CalDAV DESCRIPTION-only task \u2192 TW sentinel and annotation",
+      "status": "completed",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Create a CalDAV VTODO with SUMMARY line absent (not empty), DESCRIPTION present; sync; assert TW description == \"(no title)\" and one annotation.",
+        "file_path": "tests/robot/suites/07_field_mapping.robot",
+        "acceptance_criteria": [
+          "VTODO with no SUMMARY line and DESCRIPTION:A note about milk -> TW description == \"(no title)\"",
+          "TW task has annotation with description \"A note about milk\"",
+          "SUMMARY line is truly absent (keyword must not emit SUMMARY:)"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T23:27:18.640965Z",
+        "completed_at": "2026-03-09T23:27:53.613132Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T23:27:53.613461Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-3": {
+      "type": "task",
+      "title": "Add S-66: TW task with annotation \u2192 CalDAV DESCRIPTION set, SUMMARY not duplicated",
+      "status": "completed",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Create TW task with description and annotation; sync to CalDAV; assert SUMMARY == task description, DESCRIPTION == annotation text, SUMMARY != DESCRIPTION.",
+        "file_path": "tests/robot/suites/07_field_mapping.robot",
+        "acceptance_criteria": [
+          "VTODO SUMMARY == TW description; DESCRIPTION == annotation text; SUMMARY != DESCRIPTION"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T23:46:34.446285Z",
+        "completed_at": "2026-03-09T23:47:09.617683Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T23:47:09.618052Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-4": {
+      "type": "task",
+      "title": "Add S-67: CalDAV PRIORITY \u2192 TW priority mapping",
+      "status": "completed",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Create three CalDAV VTODOs with PRIORITY:1, PRIORITY:5, PRIORITY:9; sync; assert TW priority H, M, L respectively.",
+        "file_path": "tests/robot/suites/07_field_mapping.robot",
+        "acceptance_criteria": [
+          "PRIORITY:1 -> priority == \"H\"; PRIORITY:5 -> priority == \"M\"; PRIORITY:9 -> priority == \"L\"",
+          "TW task with priority=H syncs to CalDAV with PRIORITY:1"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-09T23:47:56.473521Z",
+        "completed_at": "2026-03-09T23:48:24.797082Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-09T23:48:24.797334Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-5": {
+      "type": "task",
+      "title": "Add S-68: CalDAV-only task in project calendar \u2192 TW project set",
+      "status": "completed",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "VTODO in work calendar; sync; assert TW project == \"work\". Use Skip If with MULTI_CALENDAR_ENABLED env var.",
+        "file_path": "tests/robot/suites/07_field_mapping.robot",
+        "acceptance_criteria": [
+          "CalDAV VTODO in work calendar -> TW project == \"work\" (or test is explicitly skipped)"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-10T06:13:10.983952Z",
+        "completed_at": "2026-03-10T06:13:25.716336Z",
+        "needs_journaling": false,
+        "actual_hours": 0.0,
+        "journaled_at": "2026-03-10T06:13:25.716673Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "task-6-6": {
+      "type": "task",
+      "title": "Update CATALOG.md with S-64\u2013S-68",
+      "status": "completed",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 1,
+      "metadata": {
+        "description": "Add entries for S-64 through S-68 with status markers reflecting actual RF run results.",
+        "file_path": "tests/robot/CATALOG.md",
+        "acceptance_criteria": [
+          "CATALOG.md contains entries for S-64, S-65, S-66, S-67, S-68 with status markers"
+        ],
+        "task_category": "implementation",
+        "complexity": "low",
+        "started_at": "2026-03-10T06:14:08.278580Z",
+        "completed_at": "2026-03-10T06:14:56.541287Z",
+        "needs_journaling": false,
+        "actual_hours": 0.01,
+        "journaled_at": "2026-03-10T06:14:56.541643Z"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-6-1": {
+      "type": "verify",
+      "title": "Run RF test suite \u2014 Phase 6 verification",
+      "status": "pending",
+      "parent": "phase-6",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Run CURRENT_UID=$(id -u) CURRENT_GID=$(id -g) docker compose -f tests/robot/docker-compose.yml run --rm robot and confirm S-64 through S-67 all pass; S-68 passes or is skipped.",
+        "file_path": "tests/robot/suites/07_field_mapping.robot"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "phase-7": {
+      "type": "phase",
+      "title": "Final Integration Verification",
+      "status": "pending",
+      "parent": "spec-root",
+      "children": [
+        "verify-7-1",
+        "verify-7-2"
+      ],
+      "total_tasks": 2,
+      "completed_tasks": 0,
+      "metadata": {
+        "purpose": "",
+        "description": "Confirm all phases combine cleanly, all tests pass, no regressions."
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [
+          "phase-6"
+        ],
+        "depends": []
+      }
+    },
+    "verify-7-1": {
+      "type": "verify",
+      "title": "Run full test suite",
+      "status": "pending",
+      "parent": "phase-7",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Run cargo test and the Robot Framework suite. Confirm zero failures and >= 15 new Rust unit tests.",
+        "file_path": "src/"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    },
+    "verify-7-2": {
+      "type": "verify",
+      "title": "Fidelity review",
+      "status": "pending",
+      "parent": "phase-7",
+      "children": [],
+      "total_tasks": 1,
+      "completed_tasks": 0,
+      "metadata": {
+        "description": "Use foundry-review skill to compare implementation against this spec.",
+        "file_path": "src/"
+      },
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": [],
+        "depends": []
+      }
+    }
+  },
+  "journal": [
+    {
+      "timestamp": "2026-03-09T13:50:14.311317Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add TwAnnotation struct and annotations to TWTask",
+      "content": "Added TwAnnotation struct with entry: DateTime<Utc> (tw_date serde) and description: String. Added annotations: Vec<TwAnnotation> to TWTask with skip_serializing_if = Vec::is_empty. Updated all struct literal sites across 11 source files + integration test. Added 2 tests: tw_task_annotation_roundtrip and tw_task_no_annotations_defaults_empty. Basic checks: cargo check and cargo test --lib pass (128 tests). Full cargo test deferred to verify-1-1.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-1-1"
+    },
+    {
+      "timestamp": "2026-03-09T13:50:31.941831Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add priority field to VTODO",
+      "content": "Added priority: Option<u8> to VTODO struct with #[serde(default, skip_serializing_if = \\\"Option::is_none\\\")]. Added priority: None to all VTODO struct literals across src/ and tests/. Basic checks: 128 tests passing. Full test run deferred to verify-1-1.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-1-2"
+    },
+    {
+      "timestamp": "2026-03-09T13:50:44.875810Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add project field to IREntry",
+      "content": "Added project: Option<String> to IREntry struct with #[serde(default, skip_serializing_if = \\\"Option::is_none\\\")]. Added project: None to all IREntry struct literals across src/ (build_ir production code + test helpers in 6 files). Basic checks: 128 tests passing. Full test run deferred to verify-1-1.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-1-3"
+    },
+    {
+      "timestamp": "2026-03-09T13:53:01.289641Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Run cargo test \u2014 Phase 1 verification",
+      "content": "cargo test passes: 128 lib tests + 18 integration tests, 0 failures. All VTODO struct literals audited by Rust compiler (priority field required). All existing tests still pass (annotations defaults to empty vec, project defaults to None). New tests: tw_task_annotation_roundtrip and tw_task_no_annotations_defaults_empty both pass.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "verify-1-1"
+    },
+    {
+      "timestamp": "2026-03-09T13:54:48.790839Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Parse PRIORITY in from_icalendar_string",
+      "content": "Added priority: Option<u8> = None initialization. Added PRIORITY match arm with value.trim().parse::<u8>().ok().filter(|&v| v > 0). Updated Ok(VTODO{...}) to use priority variable. Basic checks passed.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-2-1"
+    },
+    {
+      "timestamp": "2026-03-09T13:55:00.528985Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Emit PRIORITY in to_icalendar_string",
+      "content": "Added if let Some(p) = vtodo.priority { lines.push(format!(\\\"PRIORITY:{}\\\", p)); } after RRULE block in to_icalendar_string.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-2-2"
+    },
+    {
+      "timestamp": "2026-03-09T13:55:10.949579Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add ical.rs unit tests for PRIORITY",
+      "content": "Added 4 tests: priority_parsed_from_vtodo (PRIORITY:3 -> Some(3)), priority_zero_treated_as_absent (PRIORITY:0 -> None), priority_serialized_to_vtodo (Some(1) -> PRIORITY:1 in output, round-trip verified), priority_absent_not_emitted (None -> no PRIORITY line). All 4 pass.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-2-3"
+    },
+    {
+      "timestamp": "2026-03-09T13:55:25.043590Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Run cargo test \u2014 Phase 2 verification",
+      "content": "cargo test --lib: 132 passed, 0 failed. Phase 2 complete: PRIORITY parsed from iCal (trim+filter zero), emitted to iCal, 4 unit tests all passing.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "verify-2-1"
+    },
+    {
+      "timestamp": "2026-03-09T14:00:15.857299Z",
+      "entry_type": "status_change",
+      "title": "Status changed to in_progress",
+      "content": "Refactoring TwCalDavFields struct: rename description\u2192summary, add annotations and priority fields",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-1"
+    },
+    {
+      "timestamp": "2026-03-09T14:01:10.083228Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Refactor TwCalDavFields struct",
+      "content": "Refactored TwCalDavFields struct: renamed description\u2192summary, added annotations: Option<String> and priority: Option<u8> fields. Updated tw_to_caldav_fields constructor (summary stub, annotations: None, priority: None). Fixed tw_description_mapped test to use fields.summary. Also applied minimal writeback.rs rename (fields.description\u2192fields.summary) to keep build green \u2014 full writeback update deferred to task-3-5. cargo check passes cleanly.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-1"
+    },
+    {
+      "timestamp": "2026-03-09T14:03:34.211133Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Refactor CalDavTwFields struct",
+      "content": "Refactored CalDavTwFields struct: fixed doc comment on description (VTODO SUMMARY \u2192 TW description), added annotations_text: Option<String> and priority: Option<String> fields. Updated caldav_to_tw_fields constructor with stubs (None). cargo check passes cleanly.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-2"
+    },
+    {
+      "timestamp": "2026-03-09T14:10:26.397057Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Update tw_to_caldav_fields function",
+      "content": "Updated tw_to_caldav_fields: description\\u2192summary with (no title) sentinel\\u2192None, annotations from task.annotations.first().description, priority H/M/L\\u21921/5/9u8. cargo check passes.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-3"
+    },
+    {
+      "timestamp": "2026-03-09T14:11:43.096232Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Update caldav_to_tw_fields function",
+      "content": "Updated caldav_to_tw_fields: description source changed to vtodo.summary.unwrap_or(\\\"(no title)\\\"), annotations_text from vtodo.description (empty/whitespace \u2192 None), priority 1-4\u2192H/5\u2192M/6-9\u2192L/other\u2192None. cargo check passes.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-4"
+    },
+    {
+      "timestamp": "2026-03-09T14:17:34.109442Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Update writeback.rs field references after struct rename",
+      "content": "writeback.rs TwCalDavFields rename was applied during task-3-1 (fields.description\u2192fields.summary on lines 78-79). CalDavTwFields.description at line 145 is correctly named and unchanged. cargo check clean, no further changes needed.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-5"
+    },
+    {
+      "timestamp": "2026-03-09T20:41:49.390880Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add mapper unit tests",
+      "content": "Added 11 new tests covering summary/annotations/priority in both directions. Fixed broken existing test caldav_absent_description_becomes_empty_string \u2192 caldav_absent_summary_becomes_no_title_sentinel. Moved TwAnnotation import into test module to avoid unused import warning. 27/27 mapper::fields tests pass, no warnings.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-3-6"
+    },
+    {
+      "timestamp": "2026-03-09T20:46:05.355207Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Run cargo test \u2014 Phase 3 verification",
+      "content": "Full cargo test suite: 143 unit tests + 4 binary tests + 18 integration tests = 165 total. 0 failures, 0 warnings. Phase 3 verified.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "verify-3-1"
+    },
+    {
+      "timestamp": "2026-03-09T21:48:19.067923Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add resolve_project_from_url helper",
+      "content": "Added DEFAULT_PROJECT const and resolve_project_from_url helper to ir.rs. Normalizes URLs by trimming trailing slashes, returns None for DEFAULT_PROJECT or unmatched URLs. Unused warnings expected \u2014 will be resolved in task-4-2.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-4-1"
+    },
+    {
+      "timestamp": "2026-03-09T21:48:45.753038Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Populate entry.project in build_ir CalDAV-only pass",
+      "content": "Wired resolve_project_from_url into CalDAV-only pass of build_ir. Added `let project = resolve_project_from_url(&calendar_url, config)` and set project field on IREntry (previously hardcoded None). cargo check: no warnings, no errors.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-4-2"
+    },
+    {
+      "timestamp": "2026-03-09T21:49:16.273328Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add IR unit tests for project injection",
+      "content": "Added 2 IR tests: caldav_only_entry_gets_project_from_config (work calendar \u2192 Some(\"work\")) and caldav_only_entry_with_default_project_gets_none (default calendar \u2192 None). 12/12 IR tests pass.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-4-3"
+    },
+    {
+      "timestamp": "2026-03-09T21:54:36.034463Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Run cargo test \u2014 Phase 4 verification",
+      "content": "Full cargo test: 145 unit + 4 binary + 18 integration = 167 total. 0 failures, 0 warnings. Phase 4 verified.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "verify-4-1"
+    },
+    {
+      "timestamp": "2026-03-09T22:10:18.162438Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add now parameter to build_tw_task_from_caldav",
+      "content": "Added now: DateTime<Utc> parameter to build_tw_task_from_caldav. Replaced Utc::now() with now for deterministic entry timestamp. Updated both call sites: PullFromCalDav and CalDav-wins ResolveConflict. cargo check clean.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-5-1"
+    },
+    {
+      "timestamp": "2026-03-09T22:28:13.766349Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Fix build_vtodo_from_tw",
+      "content": "Fixed build_vtodo_from_tw: summary=fields.summary, description=fields.annotations (first annotation or None), priority=fields.priority. cargo check clean.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-5-2"
+    },
+    {
+      "timestamp": "2026-03-09T22:29:12.456786Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Fix build_tw_task_from_caldav \u2014 priority, annotations, project",
+      "content": "Fixed build_tw_task_from_caldav: priority=fields.priority (no base fallback), project uses entry.project for CalDAV-only entries. Added merge_annotations helper implementing 6-branch Annotation Slot Invariant. cargo check clean.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-5-3"
+    },
+    {
+      "timestamp": "2026-03-09T22:30:00.226401Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add writeback unit tests",
+      "content": "Added 3 writeback unit tests: build_vtodo_from_tw_uses_summary_not_description, build_tw_task_caldav_only_injects_project, build_tw_task_reads_summary_as_description. 17/17 writeback tests pass.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-5-4"
+    },
+    {
+      "timestamp": "2026-03-09T22:45:36.531067Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Run cargo test \u2014 Phase 5 verification",
+      "content": "Full cargo test: 148 unit + 4 binary + 18 integration = 170 total. Fixed 2 regressions: (1) content_identical check #2 updated from tw.description vs vtodo.description to tw.annotations[0] vs vtodo.description; (2) modify_first_vtodo_summary test helper no longer sets vtodo.description (under new mapping DESCRIPTION=annotations not summary). All 170 tests pass.",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "verify-5-1"
+    },
+    {
+      "timestamp": "2026-03-09T23:24:48.204989Z",
+      "entry_type": "status_change",
+      "title": "Status changed to in_progress",
+      "content": "Reading existing robot file to match patterns, then adding S-64 scenario",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-1"
+    },
+    {
+      "timestamp": "2026-03-09T23:26:49.043921Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add S-64: CalDAV SUMMARY-only task \u2192 TW description",
+      "content": "Added S-64 scenario to tests/robot/suites/07_field_mapping.robot. Test creates a CalDAV VTODO with only SUMMARY 'Buy oat milk' (no DESCRIPTION), syncs, then asserts TW task description == 'Buy oat milk' using the new TW.Get TW Task By Caldavuid keyword. Also added get_tw_task_by_caldavuid() method to TaskWarriorLibrary.py to support caldavuid-based TW task lookup. Basic checks: valid RF syntax, follows existing test patterns. Full test run deferred to verify-6-1.\"",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-1"
+    },
+    {
+      "timestamp": "2026-03-09T23:27:53.613461Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add S-65: CalDAV DESCRIPTION-only task \u2192 TW sentinel and annotation",
+      "content": "Added S-65 scenario to 07_field_mapping.robot. Added put_vtodo_with_description() to CalDAVLibrary.py (creates VTODO with DESCRIPTION but no SUMMARY line). Added tw_task_should_have_annotation() to TaskWarriorLibrary.py (asserts annotation description). Test creates VTODO with only DESCRIPTION 'A note about milk', syncs, then asserts TW description == '(no title)' and annotation == 'A note about milk'. Basic syntax check passed. Full test run deferred to verify-6-1.\"",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-2"
+    },
+    {
+      "timestamp": "2026-03-09T23:47:09.618052Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add S-66: TW task with annotation \u2192 CalDAV DESCRIPTION set, SUMMARY not duplicated",
+      "content": "Added S-66 scenario to 07_field_mapping.robot. Added add_tw_annotation() to TaskWarriorLibrary.py (runs 'task uuid annotate text'). Test creates TW task 'Pick up groceries', annotates with 'Don't forget the milk', syncs, then asserts VTODO SUMMARY == 'Pick up groceries', DESCRIPTION == 'Don't forget the milk', and SUMMARY != DESCRIPTION. CalDAV.Get VTODO Property (already exists) used to read both fields. Basic syntax check passed. Full test run deferred to verify-6-1.\"",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-3"
+    },
+    {
+      "timestamp": "2026-03-09T23:48:24.797334Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add S-67: CalDAV PRIORITY \u2192 TW priority mapping",
+      "content": "Added S-67 scenario to 07_field_mapping.robot. Added put_vtodo_with_priority() to CalDAVLibrary.py (creates VTODO with PRIORITY property). Test creates 3 VTODOs with PRIORITY 1/5/9, syncs, asserts TW priority H/M/L. Then creates TW task with priority H, syncs, asserts VTODO raw contains PRIORITY:1. Uses existing Modify TW Task for TW priority and Get VTODO Raw for CalDAV assertion. Basic syntax check passed. Full test run deferred to verify-6-1.\"",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-4"
+    },
+    {
+      "timestamp": "2026-03-10T06:13:25.716673Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Add S-68: CalDAV-only task in project calendar \u2192 TW project set",
+      "content": "Added S-68 scenario to 07_field_mapping.robot. Test skips unless MULTI_CALENDAR_ENABLED env var is set. When enabled: creates a second 'work' CalDAV collection, puts a VTODO in it, runs sync with a two-calendar config (default + work), asserts TW task has project=='work', then deletes the work collection. Uses Get Environment Variable with empty default for the skip guard. Basic syntax check passed. Full test run deferred to verify-6-1.\"",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-5"
+    },
+    {
+      "timestamp": "2026-03-10T06:14:56.541643Z",
+      "entry_type": "status_change",
+      "title": "Task Completed: Update CATALOG.md with S-64\u2013S-68",
+      "content": "Added S-64 through S-68 entries to tests/robot/docs/CATALOG.md. Each entry includes the standard fields (ID, Category, Robot Test Case Name, skip-unimplemented, Status), User Story, Setup, Expected State, Exit Code, and Notes sections. Status set to \u23f3 Pending (tests implemented but not yet verified \u2014 verify-6-1 is pending). Updated summary table with 5 new rows. Updated total count from 42 to 47 scenarios (42 active, 5 skip-unimplemented). Basic check: all Robot Test Case Names match exact strings in 07_field_mapping.robot.\"",
+      "author": "foundry-mcp",
+      "metadata": {},
+      "task_id": "task-6-6"
+    }
+  ]
+}
