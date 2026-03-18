@@ -24,6 +24,9 @@ enum Commands {
     Sync {
         #[arg(long)]
         dry_run: bool,
+        /// Abort sync on first error instead of continuing
+        #[arg(long)]
+        fail_fast: bool,
     },
 }
 
@@ -38,7 +41,7 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Sync { dry_run } => {
+        Commands::Sync { dry_run, fail_fast } => {
             // Load configuration
             let config = config::load(cli.config.as_deref())
                 .context("Failed to load configuration")?;
@@ -79,6 +82,7 @@ fn run() -> Result<()> {
                 &tw,
                 &caldav,
                 dry_run,
+                fail_fast,
                 Utc::now(),
             );
 
@@ -106,7 +110,7 @@ mod tests {
     fn sync_dry_run_true() {
         let cli = Cli::try_parse_from(["caldawarrior", "sync", "--dry-run"]).expect("parse");
         match cli.command {
-            Commands::Sync { dry_run } => assert!(dry_run, "expected dry_run to be true"),
+            Commands::Sync { dry_run, .. } => assert!(dry_run, "expected dry_run to be true"),
         }
     }
 
@@ -114,7 +118,7 @@ mod tests {
     fn sync_dry_run_false() {
         let cli = Cli::try_parse_from(["caldawarrior", "sync"]).expect("parse");
         match cli.command {
-            Commands::Sync { dry_run } => assert!(!dry_run, "expected dry_run to be false"),
+            Commands::Sync { dry_run, .. } => assert!(!dry_run, "expected dry_run to be false"),
         }
     }
 
@@ -128,6 +132,22 @@ mod tests {
             Some(std::path::Path::new("/tmp/cfg.toml")),
             "expected config path to be /tmp/cfg.toml"
         );
+    }
+
+    #[test]
+    fn sync_fail_fast_flag_accepted() {
+        let cli = Cli::try_parse_from(["caldawarrior", "sync", "--fail-fast"]).expect("parse");
+        match cli.command {
+            Commands::Sync { fail_fast, .. } => assert!(fail_fast, "expected fail_fast to be true"),
+        }
+    }
+
+    #[test]
+    fn sync_fail_fast_defaults_false() {
+        let cli = Cli::try_parse_from(["caldawarrior", "sync"]).expect("parse");
+        match cli.command {
+            Commands::Sync { fail_fast, .. } => assert!(!fail_fast, "expected fail_fast to default to false"),
+        }
     }
 
     #[test]

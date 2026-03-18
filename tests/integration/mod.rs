@@ -713,7 +713,7 @@ impl TestHarness {
             vtodos_by_calendar.insert(cal.url.clone(), vtodos);
         }
 
-        run_sync(&tw_tasks, &vtodos_by_calendar, &self.config, &tw, &caldav, dry_run, Utc::now())
+        run_sync(&tw_tasks, &vtodos_by_calendar, &self.config, &tw, &caldav, dry_run, false, Utc::now())
     }
 }
 

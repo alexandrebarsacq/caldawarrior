@@ -35,6 +35,7 @@ pub fn run_sync<R: TaskRunner>(
     tw: &TwAdapter<R>,
     caldav: &dyn CalDavClient,
     dry_run: bool,
+    fail_fast: bool,
     now: DateTime<Utc>,
 ) -> SyncResult {
     // Filter out completed/deleted TW tasks that have no caldavuid and are older
@@ -59,7 +60,7 @@ pub fn run_sync<R: TaskRunner>(
     let dep_warnings = resolve_dependencies(&mut ir);
 
     // Step 3: apply write-back (ETag retry owned here, not in run_sync).
-    let mut result = apply_writeback(&mut ir, tw, caldav, dry_run, now);
+    let mut result = apply_writeback(&mut ir, tw, caldav, dry_run, fail_fast, now);
 
     // Merge warnings from steps 1 and 2 into the result.
     let mut all_warnings = ir_warnings;
@@ -153,6 +154,7 @@ mod tests {
             &tw,
             &caldav,
             false,
+            false,
             t(2026, 2, 2, 0, 0, 0),
         );
 
@@ -182,6 +184,7 @@ mod tests {
             &tw,
             &caldav,
             true,
+            false,
             t(2026, 2, 2, 0, 0, 0),
         );
 
@@ -212,6 +215,7 @@ mod tests {
             &tw,
             &caldav,
             true,
+            false,
             t(2026, 2, 2, 0, 0, 0),
         );
 
@@ -252,6 +256,7 @@ mod tests {
             &config,
             &tw,
             &caldav,
+            false,
             false,
             t(2026, 2, 2, 0, 0, 0),
         );

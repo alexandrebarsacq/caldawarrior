@@ -424,6 +424,7 @@ pub fn apply_writeback<R: TaskRunner>(
     tw: &TwAdapter<R>,
     caldav: &dyn CalDavClient,
     dry_run: bool,
+    fail_fast: bool,
     now: DateTime<Utc>,
 ) -> SyncResult {
     let mut result = SyncResult {
@@ -440,6 +441,9 @@ pub fn apply_writeback<R: TaskRunner>(
 
     for entry in ir.iter_mut() {
         apply_entry(entry, &caldav_index, tw, caldav, dry_run, now, &mut result);
+        if fail_fast && !result.errors.is_empty() {
+            break;
+        }
     }
 
     result
@@ -476,16 +480,22 @@ fn apply_entry<R: TaskRunner>(
                 // EtagConflict: entry.fetched_vtodo updated; retry decision.
                 if attempt + 1 >= MAX_ETAG_RETRIES {
                     result.errors.push(format!(
-                        "SyncConflict: ETag conflict unresolved after {} attempts (uid={:?})",
+                        "SyncConflict: ETag conflict unresolved after {} attempts \
+                         (tw_uuid={:?}, caldav_uid={:?}, href={:?})",
                         MAX_ETAG_RETRIES,
-                        entry.caldav_uid
+                        entry.tw_uuid,
+                        entry.caldav_uid,
+                        entry.fetched_vtodo.as_ref().map(|fv| &fv.href),
                     ));
                     return;
                 }
                 // Continue to next attempt.
             }
             Err(e) => {
-                result.errors.push(e.to_string());
+                result.errors.push(format!(
+                    "{} (tw_uuid={:?}, caldav_uid={:?})",
+                    e, entry.tw_uuid, entry.caldav_uid
+                ));
                 return;
             }
         }
@@ -817,7 +827,7 @@ mod tests {
 
         let caldav = MockCalDavClient::new();
         let now = t(2026, 2, 2, 0, 0, 0);
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, now);
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, now);
 
         assert_eq!(result.written_caldav, 1);
         let calls = caldav.calls.lock().unwrap();
@@ -832,7 +842,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.skipped, 1);
         assert_eq!(result.written_caldav, 0);
@@ -856,6 +866,7 @@ mod tests {
             &tw,
             &caldav,
             false,
+            false,
             t(2026, 2, 2, 0, 0, 0),
         );
 
@@ -871,7 +882,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.skipped, 1);
         assert_eq!(result.written_tw, 0);
@@ -898,7 +909,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_caldav, 1);
     }
@@ -929,7 +940,7 @@ mod tests {
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_tw, 1);
         assert_eq!(result.written_caldav, 0);
@@ -950,7 +961,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.skipped, 1);
         assert_eq!(result.written_caldav, 0);
@@ -998,7 +1009,7 @@ mod tests {
             ));
         }
 
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_caldav, 0);
         assert_eq!(result.errors.len(), 1, "one SyncConflict error after retry exhaustion");
@@ -1013,7 +1024,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, true, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, true, false, t(2026, 2, 2, 0, 0, 0));
 
         // dry_run counts the write but doesn't actually PUT.
         assert_eq!(result.written_caldav, 1);
@@ -1040,7 +1051,7 @@ mod tests {
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_tw, 1, "orphaned task should be deleted from TW");
         assert_eq!(result.written_caldav, 0, "orphaned task must NOT be pushed to CalDAV");
@@ -1061,7 +1072,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_caldav, 1);
         let calls = caldav.calls.lock().unwrap();
@@ -1081,7 +1092,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.skipped, 1);
         assert_eq!(result.written_caldav, 0);
@@ -1103,7 +1114,7 @@ mod tests {
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_caldav, 1, "should PUT COMPLETED to CalDAV");
         assert_eq!(result.written_tw, 0);
@@ -1131,7 +1142,7 @@ mod tests {
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(&mut ir, &tw, &caldav, false, t(2026, 2, 2, 0, 0, 0));
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_tw, 1, "should update TW task to completed");
         assert_eq!(result.written_caldav, 0);
