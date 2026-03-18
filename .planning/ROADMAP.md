@@ -12,7 +12,7 @@ Caldawarrior's core sync engine is implemented and backed by 170 Rust tests and 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Code Audit and Bug Fixes** - Fix CATEGORIES escaping, XML parser, ETag normalization, and error handling before any test expansion
+- [x] **Phase 1: Code Audit and Bug Fixes** - Fix CATEGORIES escaping, XML parser, ETag normalization, and error handling before any test expansion
 - [ ] **Phase 2: Relation Verification** - Prove dependency relations work end-to-end with real servers and document client limitations
 - [ ] **Phase 3: Field and Sync Correctness** - Verify all mapped fields, status transitions, deletion, and idempotency with E2E tests
 - [ ] **Phase 4: Compatibility** - Verify multi-server XML parsing, DATE-only values, timezone handling, and property preservation
@@ -116,7 +116,7 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Code Audit and Bug Fixes | 0/3 | Planning complete | - |
+| 1. Code Audit and Bug Fixes | 3/3 | Complete | 2026-03-18 |
 | 2. Relation Verification | 0/? | Not started | - |
 | 3. Field and Sync Correctness | 0/? | Not started | - |
 | 4. Compatibility | 0/? | Not started | - |
