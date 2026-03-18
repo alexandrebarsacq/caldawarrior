@@ -768,6 +768,227 @@ mod tests {
         assert_eq!(s, "line1\nline2");
     }
 
+    // -----------------------------------------------------------------------
+    // ETag normalization tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_normalize_etag_weak() {
+        assert_eq!(normalize_etag("W/\"abc123\""), "\"abc123\"");
+    }
+
+    #[test]
+    fn test_normalize_etag_weak_lowercase() {
+        assert_eq!(normalize_etag("w/\"abc123\""), "\"abc123\"");
+    }
+
+    #[test]
+    fn test_normalize_etag_strong() {
+        assert_eq!(normalize_etag("\"abc123\""), "\"abc123\"");
+    }
+
+    #[test]
+    fn test_normalize_etag_bare() {
+        assert_eq!(normalize_etag("abc123"), "\"abc123\"");
+    }
+
+    #[test]
+    fn test_normalize_etag_weak_no_quotes() {
+        assert_eq!(normalize_etag("W/abc123"), "\"abc123\"");
+    }
+
+    // -----------------------------------------------------------------------
+    // XML parser tests (namespace-aware)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_multistatus_radicale_format() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:response>
+    <D:href>/cal/test-uid.ics</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getetag>"etag123"</D:getetag>
+        <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:test-uid
+SUMMARY:Test task
+END:VTODO
+END:VCALENDAR</C:calendar-data>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 1, "should parse one VTODO");
+        assert_eq!(results[0].href, "/cal/test-uid.ics");
+        assert_eq!(results[0].etag.as_deref(), Some("\"etag123\""));
+        assert_eq!(results[0].vtodo.uid, "test-uid");
+        assert_eq!(results[0].vtodo.summary.as_deref(), Some("Test task"));
+    }
+
+    #[test]
+    fn test_parse_multistatus_custom_ns() {
+        let xml = r#"<?xml version="1.0"?>
+<ns0:multistatus xmlns:ns0="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+  <ns0:response>
+    <ns0:href>/cal/custom-uid.ics</ns0:href>
+    <ns0:propstat>
+      <ns0:prop>
+        <ns0:getetag>"custom-etag"</ns0:getetag>
+        <cal:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:custom-uid
+SUMMARY:Custom ns task
+END:VTODO
+END:VCALENDAR</cal:calendar-data>
+      </ns0:prop>
+    </ns0:propstat>
+  </ns0:response>
+</ns0:multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 1, "should parse VTODO with custom ns prefix");
+        assert_eq!(results[0].href, "/cal/custom-uid.ics");
+        assert_eq!(results[0].etag.as_deref(), Some("\"custom-etag\""));
+        assert_eq!(results[0].vtodo.uid, "custom-uid");
+    }
+
+    #[test]
+    fn test_parse_multistatus_bare_ns() {
+        let xml = r#"<?xml version="1.0"?>
+<multistatus xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <response>
+    <href>/cal/bare-uid.ics</href>
+    <propstat>
+      <prop>
+        <getetag>"bare-etag"</getetag>
+        <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:bare-uid
+SUMMARY:Bare ns task
+END:VTODO
+END:VCALENDAR</C:calendar-data>
+      </prop>
+    </propstat>
+  </response>
+</multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 1, "should parse VTODO with bare ns (default xmlns)");
+        assert_eq!(results[0].href, "/cal/bare-uid.ics");
+        assert_eq!(results[0].etag.as_deref(), Some("\"bare-etag\""));
+        assert_eq!(results[0].vtodo.uid, "bare-uid");
+    }
+
+    #[test]
+    fn test_parse_multistatus_cdata() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:response>
+    <D:href>/cal/cdata-uid.ics</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getetag>"cdata-etag"</D:getetag>
+        <C:calendar-data><![CDATA[BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:cdata-uid
+SUMMARY:CDATA task
+END:VTODO
+END:VCALENDAR]]></C:calendar-data>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 1, "should parse VTODO from CDATA");
+        assert_eq!(results[0].vtodo.uid, "cdata-uid");
+    }
+
+    #[test]
+    fn test_parse_multistatus_skip_bad_vtodo() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:response>
+    <D:href>/cal/good-uid.ics</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getetag>"good-etag"</D:getetag>
+        <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:good-uid
+SUMMARY:Good task
+END:VTODO
+END:VCALENDAR</C:calendar-data>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+  <D:response>
+    <D:href>/cal/bad-uid.ics</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getetag>"bad-etag"</D:getetag>
+        <C:calendar-data>THIS IS NOT VALID ICAL DATA</C:calendar-data>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 1, "should skip bad VTODO and keep good one");
+        assert_eq!(results[0].vtodo.uid, "good-uid");
+    }
+
+    #[test]
+    fn test_parse_multistatus_multiple() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:response>
+    <D:href>/cal/uid-1.ics</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getetag>"etag-1"</D:getetag>
+        <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:uid-1
+SUMMARY:First task
+END:VTODO
+END:VCALENDAR</C:calendar-data>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+  <D:response>
+    <D:href>/cal/uid-2.ics</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getetag>"etag-2"</D:getetag>
+        <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:uid-2
+SUMMARY:Second task
+END:VTODO
+END:VCALENDAR</C:calendar-data>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 2, "should parse both VTODOs");
+        assert_eq!(results[0].vtodo.uid, "uid-1");
+        assert_eq!(results[1].vtodo.uid, "uid-2");
+    }
+
     #[test]
     fn mock_empty_responses_default_to_ok() {
         let mock = MockCalDavClient::new();
