@@ -1,9 +1,30 @@
 use crate::error::CaldaWarriorError;
-use crate::types::{FetchedVTODO, VTODO};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use crate::types::FetchedVTODO;
+use quick_xml::events::Event;
+use quick_xml::name::{Namespace, ResolveResult};
+use quick_xml::reader::NsReader;
 use reqwest::blocking::Client;
 use std::sync::Mutex;
 use std::time::Duration;
+
+// ---------------------------------------------------------------------------
+// ETag normalization
+// ---------------------------------------------------------------------------
+
+/// Normalize an ETag value: strip W/ weak prefix and ensure double-quote wrapping.
+/// Converts weak ETags to strong for use in If-Match headers (RFC 7232 section 2.3.2).
+fn normalize_etag(raw: &str) -> String {
+    let s = raw.trim();
+    // Strip weak indicator (case-insensitive)
+    let s = if s.starts_with("W/") || s.starts_with("w/") {
+        &s[2..]
+    } else {
+        s
+    };
+    // Strip existing quotes, then re-wrap
+    let s = s.trim_matches('"');
+    format!("\"{}\"", s)
+}
 
 // ---------------------------------------------------------------------------
 // CalDavClient trait
@@ -94,7 +115,7 @@ impl RealCalDavClient {
                     .headers()
                     .get("etag")
                     .and_then(|v| v.to_str().ok())
-                    .map(|s| s.to_string());
+                    .map(|s| normalize_etag(s));
                 let body = resp.text().unwrap_or_default();
                 let vtodo = crate::ical::from_icalendar_string(&body)
                     .map_err(|e| CaldaWarriorError::IcalParse(format!(
@@ -173,7 +194,7 @@ impl CalDavClient for RealCalDavClient {
             .body(ical_content.to_string());
 
         if let Some(e) = etag {
-            req = req.header("If-Match", format!("\"{}\"", e.trim_matches('"')));
+            req = req.header("If-Match", e);
         } else {
             req = req.header("If-None-Match", "*");
         }
@@ -186,7 +207,7 @@ impl CalDavClient for RealCalDavClient {
                     .headers()
                     .get("etag")
                     .and_then(|v| v.to_str().ok())
-                    .map(|s| s.to_string());
+                    .map(|s| normalize_etag(s));
                 Ok(new_etag)
             }
             401 => Err(CaldaWarriorError::Auth { server_url: url }),
@@ -211,7 +232,7 @@ impl CalDavClient for RealCalDavClient {
             .basic_auth(&self.username, Some(&self.password));
 
         if let Some(e) = etag {
-            req = req.header("If-Match", format!("\"{}\"", e.trim_matches('"')));
+            req = req.header("If-Match", e);
         }
 
         let resp = req.send().map_err(|e| map_reqwest_error(e, &url))?;
@@ -309,304 +330,136 @@ impl CalDavClient for MockCalDavClient {
 }
 
 // ---------------------------------------------------------------------------
-// XML parsing helpers (string-based, no external XML crate)
+// XML parsing helpers (namespace-aware, using quick-xml NsReader)
 // ---------------------------------------------------------------------------
 
-/// Extract the text content between the first occurrence of an opening tag
-/// (with or without namespace prefix) and its matching closing tag.
-fn extract_tag_content<'a>(xml: &'a str, local_name: &str) -> Option<&'a str> {
-    // Try with namespace prefix variants then without
-    let prefixes = ["D:", "C:", ""];
-    for prefix in &prefixes {
-        let open_tag = format!("<{}{}>", prefix, local_name);
-        let close_tag = format!("</{}{}>", prefix, local_name);
-        if let Some(start) = xml.find(&open_tag) {
-            let content_start = start + open_tag.len();
-            if let Some(end) = xml[content_start..].find(&close_tag) {
-                return Some(&xml[content_start..content_start + end]);
-            }
-        }
-    }
-    None
-}
+/// XML namespace URIs (from RFC 4791 and WebDAV).
+const DAV_NS: &[u8] = b"DAV:";
+const CALDAV_NS: &[u8] = b"urn:ietf:params:xml:ns:caldav";
 
 /// Parse the XML multi-status REPORT/PROPFIND response into a list of FetchedVTODO.
+///
+/// Uses quick-xml NsReader for namespace-aware parsing, correctly handling any
+/// namespace prefix (D:, d:, ns0:, bare default xmlns, etc.).
 fn parse_multistatus_vtodos(xml: &str) -> Vec<FetchedVTODO> {
+    let mut reader = NsReader::from_str(xml);
+    reader.config_mut().trim_text(true);
+
     let mut results = Vec::new();
 
-    // Split on <response> boundaries (handles D:response or response)
-    // We look for both namespace-prefixed and bare variants
-    let response_open_variants = ["<D:response>", "<response>"];
-    let response_close_variants = ["</D:response>", "</response>"];
+    // Per-response accumulators
+    let mut in_response = false;
+    let mut href = String::new();
+    let mut etag = String::new();
+    let mut calendar_data = String::new();
 
-    // Find which variant is used
-    let (open_tag, close_tag) = {
-        let mut found = ("<D:response>", "</D:response>");
-        for (o, c) in response_open_variants.iter().zip(response_close_variants.iter()) {
-            if xml.contains(o) {
-                found = (o, c);
-                break;
-            }
-        }
-        found
-    };
+    // Which element are we currently reading text for?
+    #[derive(PartialEq)]
+    enum Reading {
+        None,
+        Href,
+        Etag,
+        CalendarData,
+    }
+    let mut reading = Reading::None;
 
-    let mut remaining = xml;
-    while let Some(start) = remaining.find(open_tag) {
-        let after_open = start + open_tag.len();
-        if let Some(end) = remaining[after_open..].find(close_tag) {
-            let response_xml = &remaining[start + open_tag.len()..after_open + end];
-
-            // Extract href
-            let href = extract_tag_content(response_xml, "href")
-                .map(|s| s.trim().to_string());
-
-            // Extract etag (getetag)
-            let etag = extract_tag_content(response_xml, "getetag")
-                .map(|s| s.trim().to_string());
-
-            // Extract calendar-data — try multiple tag name forms
-            let calendar_data = extract_calendar_data(response_xml);
-
-            if let (Some(href), Some(cal_data)) = (href, calendar_data) {
-                if let Ok(vtodo) = crate::ical::from_icalendar_string(&cal_data) {
-                    results.push(FetchedVTODO {
-                        href,
-                        etag: if etag.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
-                            etag
-                        } else {
-                            None
-                        },
-                        vtodo,
-                    });
+    loop {
+        match reader.read_resolved_event() {
+            Ok((ResolveResult::Bound(Namespace(ns)), Event::Start(e))) => {
+                let local = e.local_name();
+                if ns == DAV_NS {
+                    match local.as_ref() {
+                        b"response" => {
+                            in_response = true;
+                            href.clear();
+                            etag.clear();
+                            calendar_data.clear();
+                            reading = Reading::None;
+                        }
+                        b"href" if in_response => {
+                            reading = Reading::Href;
+                        }
+                        b"getetag" if in_response => {
+                            reading = Reading::Etag;
+                        }
+                        _ => {}
+                    }
+                } else if ns == CALDAV_NS && local.as_ref() == b"calendar-data" && in_response {
+                    reading = Reading::CalendarData;
                 }
             }
-
-            remaining = &remaining[after_open + end + close_tag.len()..];
-        } else {
-            break;
+            Ok((ResolveResult::Bound(Namespace(ns)), Event::End(e))) => {
+                let local = e.local_name();
+                if ns == DAV_NS && local.as_ref() == b"response" && in_response {
+                    // End of a <response> element -- try to build a FetchedVTODO
+                    if !href.is_empty() && !calendar_data.is_empty() {
+                        match crate::ical::from_icalendar_string(&calendar_data) {
+                            Ok(vtodo) => {
+                                let normalized_etag = if etag.is_empty() {
+                                    None
+                                } else {
+                                    Some(normalize_etag(&etag))
+                                };
+                                results.push(FetchedVTODO {
+                                    href: href.trim().to_string(),
+                                    etag: normalized_etag,
+                                    vtodo,
+                                });
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "Warning: skipping unparseable VTODO at {}: {}",
+                                    href.trim(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+                    in_response = false;
+                    reading = Reading::None;
+                } else if ns == DAV_NS {
+                    match local.as_ref() {
+                        b"href" if reading == Reading::Href => reading = Reading::None,
+                        b"getetag" if reading == Reading::Etag => reading = Reading::None,
+                        _ => {}
+                    }
+                } else if ns == CALDAV_NS
+                    && local.as_ref() == b"calendar-data"
+                    && reading == Reading::CalendarData
+                {
+                    reading = Reading::None;
+                }
+            }
+            Ok((_, Event::Text(e))) => {
+                if let Ok(text) = e.decode() {
+                    match reading {
+                        Reading::Href => href.push_str(&text),
+                        Reading::Etag => etag.push_str(&text),
+                        Reading::CalendarData => calendar_data.push_str(&text),
+                        Reading::None => {}
+                    }
+                }
+            }
+            Ok((_, Event::CData(e))) => {
+                if let Ok(text) = e.decode() {
+                    match reading {
+                        Reading::Href => href.push_str(&text),
+                        Reading::Etag => etag.push_str(&text),
+                        Reading::CalendarData => calendar_data.push_str(&text),
+                        Reading::None => {}
+                    }
+                }
+            }
+            Ok((_, Event::Eof)) => break,
+            Err(e) => {
+                eprintln!("Warning: XML parse error in multistatus response: {}", e);
+                break;
+            }
+            _ => {} // Skip processing instructions, comments, etc.
         }
     }
 
     results
-}
-
-/// Extract calendar-data content, handling various namespace prefix forms.
-fn extract_calendar_data(xml: &str) -> Option<String> {
-    // Try various forms of the calendar-data tag
-    let tag_variants = [
-        ("C:calendar-data", "/C:calendar-data"),
-        ("calendar-data", "/calendar-data"),
-    ];
-
-    for (open_local, close_local) in &tag_variants {
-        // Find opening tag (may have attributes like content-type="...")
-        if let Some(open_pos) = find_tag_start(xml, open_local) {
-            let tag_end = xml[open_pos..].find('>')?;
-            let content_start = open_pos + tag_end + 1;
-            let close_tag = format!("<{}>", close_local);
-            if let Some(close_pos) = xml[content_start..].find(&close_tag) {
-                return Some(xml[content_start..content_start + close_pos].to_string());
-            }
-        }
-    }
-    None
-}
-
-/// Find the position of an opening tag (ignoring any attributes).
-fn find_tag_start(xml: &str, tag_name: &str) -> Option<usize> {
-    let search = format!("<{}", tag_name);
-    xml.find(&search)
-}
-
-// ---------------------------------------------------------------------------
-// iCal text parser (legacy; production code now delegates to ical::from_icalendar_string)
-// Kept here so that caldav_adapter unit tests can exercise these helpers directly.
-// ---------------------------------------------------------------------------
-
-#[allow(dead_code)]
-fn parse_vtodo_from_ical(ical: &str) -> Option<VTODO> {
-    // Unfold continuation lines (lines starting with space or tab continue previous)
-    let unfolded = unfold_ical(ical);
-
-    // Find BEGIN:VTODO ... END:VTODO
-    let vtodo_start = unfolded.find("BEGIN:VTODO")?;
-    let after_begin = vtodo_start + "BEGIN:VTODO".len();
-    let vtodo_end = unfolded[after_begin..].find("END:VTODO")?;
-    let vtodo_block = &unfolded[after_begin..after_begin + vtodo_end];
-
-    let mut uid = None;
-    let mut summary = None;
-    let mut description = None;
-    let mut status = None;
-    let mut last_modified = None;
-    let mut dtstart = None;
-    let mut due = None;
-    let mut completed = None;
-    let mut categories: Vec<String> = vec![];
-    let mut rrule = None;
-
-    for line in vtodo_block.lines() {
-        let line = line.trim_end_matches('\r');
-        if line.is_empty() {
-            continue;
-        }
-
-        // Split on first ':' to get property name (with possible params) and value
-        if let Some(colon_pos) = line.find(':') {
-            let prop_part = &line[..colon_pos];
-            let value = &line[colon_pos + 1..];
-
-            // Property name is the part before ';' (params follow ';')
-            let prop_name = prop_part.split(';').next().unwrap_or(prop_part).trim();
-
-            match prop_name.to_uppercase().as_str() {
-                "UID" => uid = Some(value.to_string()),
-                "SUMMARY" => summary = Some(unescape_ical(value)),
-                "DESCRIPTION" => description = Some(unescape_ical(value)),
-                "STATUS" => status = Some(value.to_string()),
-                "LAST-MODIFIED" => last_modified = parse_ical_datetime(value),
-                "DTSTART" => dtstart = parse_ical_datetime(value),
-                "DUE" => due = parse_ical_datetime(value),
-                "COMPLETED" => completed = parse_ical_datetime(value),
-                "CATEGORIES" => {
-                    // May be comma-separated
-                    for cat in value.split(',') {
-                        let cat = cat.trim().to_string();
-                        if !cat.is_empty() {
-                            categories.push(cat);
-                        }
-                    }
-                }
-                "RRULE" => rrule = Some(value.to_string()),
-                _ => {}
-            }
-        }
-    }
-
-    let uid = uid?;
-
-    Some(VTODO {
-        uid,
-        summary,
-        description,
-        status,
-        last_modified,
-        dtstamp: None,
-        dtstart,
-        due,
-        completed,
-        categories,
-        rrule,
-        priority: None,
-        depends: vec![],
-        extra_props: vec![],
-    })
-}
-
-#[allow(dead_code)]
-/// Unfold iCal continuation lines (RFC 5545: lines folded at 75 chars, continued with CRLF + space/tab).
-fn unfold_ical(ical: &str) -> String {
-    let mut result = String::with_capacity(ical.len());
-    let mut chars = ical.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '\r' {
-            // Consume optional \n
-            if chars.peek() == Some(&'\n') {
-                chars.next();
-            }
-            // Check if next char is space or tab (continuation)
-            if chars.peek() == Some(&' ') || chars.peek() == Some(&'\t') {
-                chars.next(); // skip the whitespace continuation character
-                              // Do not append newline — this is a continuation
-            } else {
-                result.push('\n');
-            }
-        } else if c == '\n' {
-            // Check if next char is space or tab (continuation)
-            if chars.peek() == Some(&' ') || chars.peek() == Some(&'\t') {
-                chars.next(); // skip whitespace
-            } else {
-                result.push('\n');
-            }
-        } else {
-            result.push(c);
-        }
-    }
-
-    result
-}
-
-#[allow(dead_code)]
-/// Unescape iCal text values (\n → newline, \, → comma, \; → semicolon, \\ → backslash).
-fn unescape_ical(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            match chars.next() {
-                Some('n') | Some('N') => result.push('\n'),
-                Some(',') => result.push(','),
-                Some(';') => result.push(';'),
-                Some('\\') => result.push('\\'),
-                Some(other) => {
-                    result.push('\\');
-                    result.push(other);
-                }
-                None => result.push('\\'),
-            }
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-
-#[allow(dead_code)]
-/// Normalize an ETag value: strip W/ weak prefix and ensure double-quote wrapping.
-/// Converts weak ETags to strong for use in If-Match headers (RFC 7232 section 2.3.2).
-fn normalize_etag(raw: &str) -> String {
-    let s = raw.trim();
-    // Strip weak indicator (case-insensitive)
-    let s = if s.starts_with("W/") || s.starts_with("w/") {
-        &s[2..]
-    } else {
-        s
-    };
-    // Strip existing quotes, then re-wrap
-    let s = s.trim_matches('"');
-    format!("\"{}\"", s)
-}
-
-#[allow(dead_code)]
-/// Parse an iCal datetime string into a UTC DateTime.
-/// Handles formats:
-/// - `YYYYMMDDTHHMMSSZ` (UTC)
-/// - `YYYYMMDDTHHMMSS` (floating, treated as UTC)
-/// - `YYYYMMDD` (date-only, treated as midnight UTC)
-fn parse_ical_datetime(s: &str) -> Option<DateTime<Utc>> {
-    let s = s.trim();
-    // Strip any trailing 'Z'
-    let (s_stripped, _is_utc) = if s.ends_with('Z') {
-        (&s[..s.len() - 1], true)
-    } else {
-        (s, false)
-    };
-
-    // Try YYYYMMDDTHHMMSS
-    if s_stripped.len() == 15 && s_stripped.contains('T') {
-        NaiveDateTime::parse_from_str(s_stripped, "%Y%m%dT%H%M%S")
-            .ok()
-            .map(|ndt| ndt.and_utc())
-    } else if s_stripped.len() == 8 && !s_stripped.contains('T') {
-        // Date-only: YYYYMMDD → midnight UTC
-        NaiveDateTime::parse_from_str(&format!("{}T000000", s_stripped), "%Y%m%dT%H%M%S")
-            .ok()
-            .map(|ndt| ndt.and_utc())
-    } else {
-        None
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -726,62 +579,6 @@ mod tests {
         let result = mock.list_vtodos("https://dav.example.com/cal/");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Authentication"));
-    }
-
-    #[test]
-    fn ical_text_parser_extracts_vtodo() {
-        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:test-uid-123\r\nSUMMARY:My task\r\nSTATUS:NEEDS-ACTION\r\nEND:VTODO\r\nEND:VCALENDAR\r\n";
-        let vtodo = parse_vtodo_from_ical(ical).expect("parse");
-        assert_eq!(vtodo.uid, "test-uid-123");
-        assert_eq!(vtodo.summary.as_deref(), Some("My task"));
-        assert_eq!(vtodo.status.as_deref(), Some("NEEDS-ACTION"));
-    }
-
-    #[test]
-    fn ical_parser_handles_all_fields() {
-        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:full-uid-456\r\nSUMMARY:Full task\r\nDESCRIPTION:Some desc\r\nSTATUS:IN-PROCESS\r\nLAST-MODIFIED:20260226T120000Z\r\nDTSTART:20260226T100000Z\r\nDUE:20260227T120000Z\r\nCOMPLETED:20260228T080000Z\r\nCATEGORIES:work,personal\r\nRRULE:FREQ=WEEKLY\r\nEND:VTODO\r\nEND:VCALENDAR\r\n";
-        let vtodo = parse_vtodo_from_ical(ical).expect("parse");
-        assert_eq!(vtodo.uid, "full-uid-456");
-        assert_eq!(vtodo.summary.as_deref(), Some("Full task"));
-        assert_eq!(vtodo.description.as_deref(), Some("Some desc"));
-        assert_eq!(vtodo.status.as_deref(), Some("IN-PROCESS"));
-        assert!(vtodo.last_modified.is_some());
-        assert!(vtodo.dtstart.is_some());
-        assert!(vtodo.due.is_some());
-        assert!(vtodo.completed.is_some());
-        assert_eq!(vtodo.categories, vec!["work", "personal"]);
-        assert_eq!(vtodo.rrule.as_deref(), Some("FREQ=WEEKLY"));
-    }
-
-    #[test]
-    fn ical_parser_returns_none_without_vtodo() {
-        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n";
-        let result = parse_vtodo_from_ical(ical);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn parse_ical_datetime_utc() {
-        let dt = parse_ical_datetime("20260226T140000Z").expect("parse");
-        assert_eq!(dt.format("%Y%m%d").to_string(), "20260226");
-    }
-
-    #[test]
-    fn parse_ical_datetime_floating() {
-        let dt = parse_ical_datetime("20260226T140000").expect("parse");
-        assert_eq!(dt.format("%Y%m%d").to_string(), "20260226");
-    }
-
-    #[test]
-    fn parse_ical_datetime_date_only() {
-        let dt = parse_ical_datetime("20260226").expect("parse");
-        assert_eq!(dt.format("%Y%m%d").to_string(), "20260226");
-    }
-
-    #[test]
-    fn unescape_ical_newlines() {
-        let s = unescape_ical("line1\\nline2");
-        assert_eq!(s, "line1\nline2");
     }
 
     // -----------------------------------------------------------------------
