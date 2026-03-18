@@ -85,34 +85,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 | TBD | Pending |
-| AUDIT-02 | TBD | Pending |
-| AUDIT-03 | TBD | Pending |
-| AUDIT-04 | TBD | Pending |
-| REL-01 | TBD | Pending |
-| REL-02 | TBD | Pending |
-| REL-03 | TBD | Pending |
-| REL-04 | TBD | Pending |
-| FIELD-01 | TBD | Pending |
-| FIELD-02 | TBD | Pending |
-| FIELD-03 | TBD | Pending |
-| FIELD-04 | TBD | Pending |
-| COMPAT-01 | TBD | Pending |
-| COMPAT-02 | TBD | Pending |
-| COMPAT-03 | TBD | Pending |
-| COMPAT-04 | TBD | Pending |
-| PKG-01 | TBD | Pending |
-| PKG-02 | TBD | Pending |
-| DOC-01 | TBD | Pending |
-| DOC-02 | TBD | Pending |
-| DOC-03 | TBD | Pending |
-| DOC-04 | TBD | Pending |
+| AUDIT-01 | Phase 1 | Pending |
+| AUDIT-02 | Phase 1 | Pending |
+| AUDIT-03 | Phase 1 | Pending |
+| AUDIT-04 | Phase 1 | Pending |
+| REL-01 | Phase 2 | Pending |
+| REL-02 | Phase 2 | Pending |
+| REL-03 | Phase 2 | Pending |
+| REL-04 | Phase 2 | Pending |
+| FIELD-01 | Phase 3 | Pending |
+| FIELD-02 | Phase 3 | Pending |
+| FIELD-03 | Phase 3 | Pending |
+| FIELD-04 | Phase 3 | Pending |
+| COMPAT-01 | Phase 4 | Pending |
+| COMPAT-02 | Phase 4 | Pending |
+| COMPAT-03 | Phase 4 | Pending |
+| COMPAT-04 | Phase 4 | Pending |
+| PKG-01 | Phase 5 | Pending |
+| PKG-02 | Phase 5 | Pending |
+| DOC-01 | Phase 6 | Pending |
+| DOC-02 | Phase 6 | Pending |
+| DOC-03 | Phase 6 | Pending |
+| DOC-04 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after initial definition*
+*Last updated: 2026-03-18 after roadmap creation*
