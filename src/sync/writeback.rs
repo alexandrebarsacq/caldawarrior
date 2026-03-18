@@ -113,7 +113,8 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         extra_props.push(wait_prop);
     }
 
-    let base = entry.fetched_vtodo.as_ref().map(|fv| &fv.vtodo);
+    // base is retained for future field-mapping phases that may need CalDAV data.
+    let _base = entry.fetched_vtodo.as_ref().map(|fv| &fv.vtodo);
 
     VTODO {
         uid,
@@ -125,7 +126,7 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         dtstart: fields.dtstart,
         due: fields.due,
         completed: completed_dt,
-        categories: base.map(|v| v.categories.clone()).unwrap_or_default(),
+        categories: tw.tags.clone().unwrap_or_default(),
         rrule: None, // TW tasks are never recurring (recurring entries are skipped pre-writeback)
         priority: fields.priority,
         // Use resolved_depends (CalDAV UIDs from IR resolution phase) rather than

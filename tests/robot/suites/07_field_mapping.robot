@@ -142,6 +142,24 @@ CalDAV PRIORITY Maps To TW Priority Field
     ${raw} =    CalDAV.Get VTODO Raw    ${COLLECTION_URL}    ${caldav_uid}
     Should Contain    ${raw}    PRIORITY:1
 
+TW Tags Sync To CalDAV CATEGORIES
+    [Documentation]    AUDIT-01: TW tags are mapped to VTODO CATEGORIES during
+    ...    TW-to-CalDAV sync. Tags on the TW task should appear as CATEGORIES
+    ...    values in the CalDAV VTODO, not ignored or copied from stale data.
+    [Tags]    field-mapping    audit-01
+    ${uuid} =    TW.Add TW Task    Tag mapping test
+    TW.Modify TW Task    ${uuid}    +meeting
+    TW.Modify TW Task    ${uuid}    +work
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    TW.TW Task Should Have Caldavuid    ${uuid}
+    ${task} =    TW.Get TW Task    ${uuid}
+    ${caldav_uid} =    Set Variable    ${task}[caldavuid]
+    ${raw} =    CalDAV.Get VTODO Raw    ${COLLECTION_URL}    ${caldav_uid}
+    Should Contain    ${raw}    CATEGORIES
+    Should Contain    ${raw}    meeting
+    Should Contain    ${raw}    work
+
 CalDAV-Only Task In Project Calendar Sets TW Project
     [Documentation]    S-68: Alice's CalDAV setup has a separate "work" calendar. She
     ...    creates a VTODO in the work calendar and runs sync. The resulting TW task
