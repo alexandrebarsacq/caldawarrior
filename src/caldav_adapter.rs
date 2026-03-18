@@ -116,7 +116,10 @@ impl RealCalDavClient {
                     .get("etag")
                     .and_then(|v| v.to_str().ok())
                     .map(|s| normalize_etag(s));
-                let body = resp.text().unwrap_or_default();
+                let body = resp.text().map_err(|e| CaldaWarriorError::CalDav {
+                    status: 0,
+                    body: format!("Failed to read response body: {}", e),
+                })?;
                 let vtodo = crate::ical::from_icalendar_string(&body)
                     .map_err(|e| CaldaWarriorError::IcalParse(format!(
                         "Could not parse VTODO from GET response for {}: {}",
@@ -132,7 +135,7 @@ impl RealCalDavClient {
                 server_url: url,
             }),
             status => {
-                let body = resp.text().unwrap_or_default();
+                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -166,14 +169,17 @@ impl CalDavClient for RealCalDavClient {
 
         match resp.status().as_u16() {
             200 | 207 => {
-                let body = resp.text().unwrap_or_default();
+                let body = resp.text().map_err(|e| CaldaWarriorError::CalDav {
+                    status: 0,
+                    body: format!("Failed to read response body: {}", e),
+                })?;
                 Ok(parse_multistatus_vtodos(&body))
             }
             401 => Err(CaldaWarriorError::Auth {
                 server_url: calendar_url.to_string(),
             }),
             status => {
-                let body = resp.text().unwrap_or_default();
+                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -218,7 +224,7 @@ impl CalDavClient for RealCalDavClient {
                 })
             }
             status => {
-                let body = resp.text().unwrap_or_default();
+                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -247,7 +253,7 @@ impl CalDavClient for RealCalDavClient {
                 })
             }
             status => {
-                let body = resp.text().unwrap_or_default();
+                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
