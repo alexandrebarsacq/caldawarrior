@@ -30,11 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. CalDAV REPORT responses using arbitrary XML namespace prefixes parse correctly (not just Radicale's `D:response`)
   3. Sync errors include the original context (task UUID, field name, server URL) instead of swallowed defaults
   4. Weak ETags from Nextcloud/Baikal normalize correctly and do not cause 412 Precondition Failed loops
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Fix CATEGORIES comma-escaping and TW tags-to-CATEGORIES mapping (AUDIT-01)
+- [ ] 01-02-PLAN.md — Replace XML parser with quick-xml NsReader and add ETag normalization (AUDIT-02, AUDIT-04)
+- [ ] 01-03-PLAN.md — Fix error context swallowing and add --fail-fast flag (AUDIT-03)
 
 ### Phase 2: Relation Verification
 **Goal**: Dependency relations -- caldawarrior's differentiator -- are proven to work end-to-end with real servers
@@ -115,7 +116,7 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Code Audit and Bug Fixes | 0/? | Not started | - |
+| 1. Code Audit and Bug Fixes | 0/3 | Planning complete | - |
 | 2. Relation Verification | 0/? | Not started | - |
 | 3. Field and Sync Correctness | 0/? | Not started | - |
 | 4. Compatibility | 0/? | Not started | - |
