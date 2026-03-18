@@ -1136,4 +1136,64 @@ mod tests {
         assert_eq!(result.written_caldav, 0);
         assert_eq!(result.errors.len(), 0);
     }
+
+    // ── AUDIT-01: TW tags → VTODO categories mapping ─────────────────────
+
+    #[test]
+    fn test_build_vtodo_uses_tw_tags() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_tw_only_entry(uuid, &caldav_uid, "pending");
+        // Set TW tags
+        if let Some(ref mut tw) = entry.tw_task {
+            tw.tags = Some(vec!["work".to_string(), "urgent".to_string()]);
+        }
+        let tw_snapshot = entry.tw_task.clone().unwrap();
+        let now = t(2026, 2, 2, 0, 0, 0);
+        let vtodo = build_vtodo_from_tw(&entry, &tw_snapshot, now);
+
+        assert_eq!(
+            vtodo.categories,
+            vec!["work", "urgent"],
+            "VTODO categories must come from TW tags, not stale CalDAV data"
+        );
+    }
+
+    #[test]
+    fn test_build_vtodo_empty_tags() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_tw_only_entry(uuid, &caldav_uid, "pending");
+        // tags = None → categories should be empty
+        if let Some(ref mut tw) = entry.tw_task {
+            tw.tags = None;
+        }
+        let tw_snapshot = entry.tw_task.clone().unwrap();
+        let now = t(2026, 2, 2, 0, 0, 0);
+        let vtodo = build_vtodo_from_tw(&entry, &tw_snapshot, now);
+
+        assert!(
+            vtodo.categories.is_empty(),
+            "VTODO categories must be empty when TW has no tags"
+        );
+    }
+
+    #[test]
+    fn test_build_vtodo_tags_with_comma() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_tw_only_entry(uuid, &caldav_uid, "pending");
+        if let Some(ref mut tw) = entry.tw_task {
+            tw.tags = Some(vec!["Smith, John".to_string()]);
+        }
+        let tw_snapshot = entry.tw_task.clone().unwrap();
+        let now = t(2026, 2, 2, 0, 0, 0);
+        let vtodo = build_vtodo_from_tw(&entry, &tw_snapshot, now);
+
+        assert_eq!(
+            vtodo.categories,
+            vec!["Smith, John"],
+            "Tag with comma must be preserved as single category"
+        );
+    }
 }

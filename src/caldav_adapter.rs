@@ -564,6 +564,22 @@ fn unescape_ical(s: &str) -> String {
 }
 
 #[allow(dead_code)]
+/// Normalize an ETag value: strip W/ weak prefix and ensure double-quote wrapping.
+/// Converts weak ETags to strong for use in If-Match headers (RFC 7232 section 2.3.2).
+fn normalize_etag(raw: &str) -> String {
+    let s = raw.trim();
+    // Strip weak indicator (case-insensitive)
+    let s = if s.starts_with("W/") || s.starts_with("w/") {
+        &s[2..]
+    } else {
+        s
+    };
+    // Strip existing quotes, then re-wrap
+    let s = s.trim_matches('"');
+    format!("\"{}\"", s)
+}
+
+#[allow(dead_code)]
 /// Parse an iCal datetime string into a UTC DateTime.
 /// Handles formats:
 /// - `YYYYMMDDTHHMMSSZ` (UTC)
