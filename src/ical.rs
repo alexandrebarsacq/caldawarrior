@@ -312,6 +312,32 @@ fn split_params(s: &str) -> Vec<String> {
     result
 }
 
+/// Split a string on commas that are NOT escaped by a preceding backslash.
+///
+/// In RFC 5545, CATEGORIES values are comma-separated, but a literal comma
+/// inside a value is escaped as `\,`.  This function splits only on
+/// unescaped commas and returns slices of the original string.
+fn split_on_unescaped_commas(s: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let mut start = 0;
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' {
+            // Skip the next character (it is escaped)
+            i += 2;
+        } else if bytes[i] == b',' {
+            result.push(&s[start..i]);
+            i += 1;
+            start = i;
+        } else {
+            i += 1;
+        }
+    }
+    result.push(&s[start..]);
+    result
+}
+
 /// RFC 5545 TEXT unescape: \n→newline, \N→newline, \,→comma, \;→semicolon, \\→backslash
 fn unescape_text(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
@@ -750,5 +776,110 @@ mod tests {
         };
         let s = to_icalendar_string(&vtodo);
         assert!(!s.contains("PRIORITY"), "serialized output should not contain PRIORITY when None: {}", s);
+    }
+
+    // ── CATEGORIES comma-escaping tests (AUDIT-01) ───────────────────────
+
+    #[test]
+    fn test_split_on_unescaped_commas_basic() {
+        // Simple split
+        assert_eq!(split_on_unescaped_commas("a,b,c"), vec!["a", "b", "c"]);
+        // Escaped comma stays together
+        assert_eq!(
+            split_on_unescaped_commas("Smith\\, John,Work"),
+            vec!["Smith\\, John", "Work"]
+        );
+        // Multiple escaped commas
+        assert_eq!(
+            split_on_unescaped_commas("a\\,b,c\\,d"),
+            vec!["a\\,b", "c\\,d"]
+        );
+        // No comma
+        assert_eq!(split_on_unescaped_commas("simple"), vec!["simple"]);
+        // Empty string
+        assert_eq!(split_on_unescaped_commas(""), vec![""]);
+    }
+
+    #[test]
+    fn test_categories_comma_parse() {
+        // "CATEGORIES:Smith\, John,Work" should produce 2 categories, not 3
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:cat-comma-001\r\n\
+            CATEGORIES:Smith\\, John,Work\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        assert_eq!(vtodo.categories, vec!["Smith, John", "Work"]);
+    }
+
+    #[test]
+    fn test_categories_comma_serialize() {
+        let vtodo = VTODO {
+            uid: "cat-comma-ser-001".to_string(),
+            summary: None,
+            description: None,
+            status: None,
+            last_modified: None,
+            dtstamp: None,
+            dtstart: None,
+            due: None,
+            completed: None,
+            categories: vec!["Smith, John".to_string(), "Work".to_string()],
+            rrule: None,
+            priority: None,
+            depends: vec![],
+            extra_props: vec![],
+        };
+        let serialized = to_icalendar_string(&vtodo);
+        // The serialized form must escape commas within category values
+        assert!(
+            serialized.contains("CATEGORIES:Smith\\, John,Work"),
+            "Expected escaped CATEGORIES line, got: {}",
+            serialized
+        );
+    }
+
+    #[test]
+    fn test_categories_comma_roundtrip() {
+        let original_cats = vec!["Smith, John".to_string(), "Work".to_string()];
+        let vtodo = VTODO {
+            uid: "cat-rt-001".to_string(),
+            summary: None,
+            description: None,
+            status: None,
+            last_modified: None,
+            dtstamp: None,
+            dtstart: None,
+            due: None,
+            completed: None,
+            categories: original_cats.clone(),
+            rrule: None,
+            priority: None,
+            depends: vec![],
+            extra_props: vec![],
+        };
+        let serialized = to_icalendar_string(&vtodo);
+        let parsed = from_icalendar_string(&serialized).expect("roundtrip parse");
+        assert_eq!(parsed.categories, original_cats);
+    }
+
+    #[test]
+    fn test_categories_simple_unchanged() {
+        // No-comma categories must still work as before
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:cat-simple-001\r\n\
+            CATEGORIES:work,personal\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        assert_eq!(vtodo.categories, vec!["work", "personal"]);
+    }
+
+    #[test]
+    fn test_categories_empty() {
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:cat-empty-001\r\n\
+            CATEGORIES:\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        assert!(vtodo.categories.is_empty(), "empty CATEGORIES should produce empty vec");
     }
 }
