@@ -1,3 +1,6 @@
+# WARNING
+THIS IS "VIBE"-CODED. USE AT YOUR OWN RISKS
+
 # caldawarrior
 
 Bidirectional sync between [TaskWarrior](https://taskwarrior.org/) and CalDAV VTODO calendars.
