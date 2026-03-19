@@ -105,10 +105,11 @@ Plans:
   2. Every config.toml option is documented with its type, default value, and an example
   3. CHANGELOG exists with entries generated from git history covering the hardening milestone
   4. A compatibility matrix documents which server/client combinations are tested, which are expected to work, and what limitations exist (including DEPENDS-ON client visibility)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — README updates (Installation, Config Reference, Scheduling, Compatibility, limitation #15, CLI --fail-fast) and Cargo.toml version bump to 1.0.0 (DOC-01, DOC-02, DOC-04)
+- [ ] 06-02-PLAN.md — Create CHANGELOG.md with hand-curated entries from git history (DOC-03)
 
 ## Progress
 
@@ -123,4 +124,4 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | 3. Field and Sync Correctness | 3/3 | Complete | 2026-03-19 |
 | 4. Compatibility | 1/2 | In Progress | - |
 | 5. CI/CD and Packaging | 0/2 | Not started | - |
-| 6. Documentation and Release | 0/? | Not started | - |
+| 6. Documentation and Release | 0/2 | Not started | - |
