@@ -266,16 +266,100 @@ impl<R: TaskRunner> TwAdapter<R> {
         Ok(())
     }
 
-    /// Update an existing TW task using `task import` (upsert by UUID).
+    /// Update an existing TW task using `task <uuid> modify`.
     ///
-    /// Uses `task import` rather than `task modify` so that ALL fields are set
-    /// atomically — including `tags` and `annotations` which `task modify`
-    /// cannot handle without complex diff logic.
-    pub fn update(&self, task: &TWTask) -> Result<(), CaldaWarriorError> {
-        let json = serde_json::to_vec(task).map_err(|e| {
-            CaldaWarriorError::Config(format!("Failed to serialize task for update: {}", e))
-        })?;
-        self.runner.import(&json)?;
+    /// Builds modify args for scalar fields, computes tag diff (+tag/-tag),
+    /// and handles annotations via separate annotate/denotate commands.
+    ///
+    /// `old_task` is used for tag and annotation diff computation. Pass `None`
+    /// when only scalar fields changed (e.g., caldavuid-only writeback) — all
+    /// new tags will be treated as additions and all new annotations as additions.
+    pub fn update(&self, task: &TWTask, old_task: Option<&TWTask>) -> Result<(), CaldaWarriorError> {
+        let uuid_str = task.uuid.to_string();
+        let mut args: Vec<String> = Vec::new();
+
+        // Scalar fields
+        args.push(format!("description:{}", task.description));
+        args.push(format!("status:{}", task.status));
+
+        // Optional date fields: set value or clear
+        match task.due {
+            Some(dt) => args.push(format!("due:{}", dt.format("%Y%m%dT%H%M%SZ"))),
+            None => args.push("due:".to_string()),
+        }
+        match task.scheduled {
+            Some(dt) => args.push(format!("scheduled:{}", dt.format("%Y%m%dT%H%M%SZ"))),
+            None => args.push("scheduled:".to_string()),
+        }
+
+        // Optional string fields: set value or clear
+        match task.priority {
+            Some(ref v) => args.push(format!("priority:{}", v)),
+            None => args.push("priority:".to_string()),
+        }
+        match task.project {
+            Some(ref v) => args.push(format!("project:{}", v)),
+            None => args.push("project:".to_string()),
+        }
+        match task.caldavuid {
+            Some(ref v) => args.push(format!("caldavuid:{}", v)),
+            None => args.push("caldavuid:".to_string()),
+        }
+
+        // Depends (only if non-empty)
+        if !task.depends.is_empty() {
+            let dep_str: Vec<String> = task.depends.iter().map(|u| u.to_string()).collect();
+            args.push(format!("depends:{}", dep_str.join(",")));
+        }
+
+        // Tag diff
+        let old_tags: &[String] = old_task
+            .and_then(|t| t.tags.as_ref())
+            .map(|v| v.as_slice())
+            .unwrap_or(&[]);
+        let new_tags: &[String] = task.tags.as_ref().map(|v| v.as_slice()).unwrap_or(&[]);
+
+        for tag in new_tags {
+            if !old_tags.contains(tag) {
+                args.push(format!("+{}", tag));
+            }
+        }
+        for tag in old_tags {
+            if !new_tags.contains(tag) {
+                args.push(format!("-{}", tag));
+            }
+        }
+
+        // Call modify with all scalar + tag args
+        let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        self.runner.modify(&uuid_str, &args_refs)?;
+
+        // Annotation diff
+        let old_annotations = old_task.map(|t| t.annotations.as_slice()).unwrap_or(&[]);
+        let new_annotations = task.annotations.as_slice();
+
+        // Annotations added (in new but not in old, matched by description)
+        for ann in new_annotations {
+            let exists_in_old = old_annotations
+                .iter()
+                .any(|oa| oa.description == ann.description);
+            if !exists_in_old {
+                self.runner
+                    .run(&[&uuid_str, "annotate", &ann.description])?;
+            }
+        }
+
+        // Annotations removed (in old but not in new, matched by description)
+        for ann in old_annotations {
+            let exists_in_new = new_annotations
+                .iter()
+                .any(|na| na.description == ann.description);
+            if !exists_in_new {
+                self.runner
+                    .run(&[&uuid_str, "denotate", &ann.description])?;
+            }
+        }
+
         Ok(())
     }
 
@@ -379,15 +463,239 @@ mod tests {
     }
 
     #[test]
-    fn update_uses_import_for_full_field_support() {
+    fn update_uses_modify_not_import() {
         let mock = MockTaskRunner::new();
         mock.push_run_response(Ok(String::new())); // uda type
         mock.push_run_response(Ok(String::new())); // uda label
-        mock.push_import_response(Ok(String::new())); // import (update)
+        mock.push_run_response(Ok(String::new())); // modify (update)
 
         let adapter = TwAdapter::new(mock).expect("new");
         let task = make_task(Uuid::new_v4());
-        adapter.update(&task).expect("update");
+        adapter.update(&task, None).expect("update");
+
+        // Verify that modify was called (Run), not import
+        let calls = adapter.runner.get_calls();
+        // calls[0] = uda type, calls[1] = uda label, calls[2] = modify
+        assert!(calls.len() >= 3, "expected at least 3 calls, got {}", calls.len());
+        match &calls[2] {
+            MockCall::Run(args) => {
+                assert!(args.contains(&"modify".to_string()),
+                    "expected 'modify' in args, got {:?}", args);
+            }
+            MockCall::Import(_) => panic!("update() should NOT call import"),
+        }
+    }
+
+    #[test]
+    fn update_builds_correct_scalar_modify_args() {
+        use chrono::TimeZone;
+
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let mut task = make_task(uuid);
+        task.description = "Buy milk".to_string();
+        task.status = "pending".to_string();
+        task.due = Some(Utc.with_ymd_and_hms(2026, 3, 15, 10, 0, 0).unwrap());
+        task.priority = Some("H".to_string());
+        task.project = Some("home".to_string());
+        task.caldavuid = Some("abc-123".to_string());
+
+        adapter.update(&task, None).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        let modify_call = &calls[2]; // after uda type + uda label
+        match modify_call {
+            MockCall::Run(args) => {
+                assert!(args.contains(&format!("description:{}", task.description)));
+                assert!(args.contains(&"status:pending".to_string()));
+                assert!(args.contains(&"due:20260315T100000Z".to_string()));
+                assert!(args.contains(&"priority:H".to_string()));
+                assert!(args.contains(&"project:home".to_string()));
+                assert!(args.contains(&"caldavuid:abc-123".to_string()));
+            }
+            _ => panic!("expected Run call for modify"),
+        }
+    }
+
+    #[test]
+    fn update_generates_plus_tag_for_new_tags() {
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let mut new_task = make_task(uuid);
+        new_task.tags = Some(vec!["work".to_string(), "urgent".to_string()]);
+
+        let old_task = make_task(uuid); // no tags
+
+        adapter.update(&new_task, Some(&old_task)).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        match &calls[2] {
+            MockCall::Run(args) => {
+                assert!(args.contains(&"+work".to_string()),
+                    "expected +work in args: {:?}", args);
+                assert!(args.contains(&"+urgent".to_string()),
+                    "expected +urgent in args: {:?}", args);
+            }
+            _ => panic!("expected Run call for modify"),
+        }
+    }
+
+    #[test]
+    fn update_generates_minus_tag_for_removed_tags() {
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let new_task = make_task(uuid); // no tags
+
+        let mut old_task = make_task(uuid);
+        old_task.tags = Some(vec!["obsolete".to_string()]);
+
+        adapter.update(&new_task, Some(&old_task)).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        match &calls[2] {
+            MockCall::Run(args) => {
+                assert!(args.contains(&"-obsolete".to_string()),
+                    "expected -obsolete in args: {:?}", args);
+            }
+            _ => panic!("expected Run call for modify"),
+        }
+    }
+
+    #[test]
+    fn update_no_old_task_treats_all_tags_as_additions() {
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let mut task = make_task(uuid);
+        task.tags = Some(vec!["alpha".to_string(), "beta".to_string()]);
+
+        adapter.update(&task, None).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        match &calls[2] {
+            MockCall::Run(args) => {
+                assert!(args.contains(&"+alpha".to_string()),
+                    "expected +alpha in args: {:?}", args);
+                assert!(args.contains(&"+beta".to_string()),
+                    "expected +beta in args: {:?}", args);
+            }
+            _ => panic!("expected Run call for modify"),
+        }
+    }
+
+    #[test]
+    fn update_clears_optional_fields_correctly() {
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let task = make_task(uuid); // due=None, scheduled=None, priority=None, project=None
+
+        adapter.update(&task, None).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        match &calls[2] {
+            MockCall::Run(args) => {
+                assert!(args.contains(&"due:".to_string()),
+                    "expected 'due:' (clear) in args: {:?}", args);
+                assert!(args.contains(&"scheduled:".to_string()),
+                    "expected 'scheduled:' (clear) in args: {:?}", args);
+                assert!(args.contains(&"priority:".to_string()),
+                    "expected 'priority:' (clear) in args: {:?}", args);
+                assert!(args.contains(&"project:".to_string()),
+                    "expected 'project:' (clear) in args: {:?}", args);
+            }
+            _ => panic!("expected Run call for modify"),
+        }
+    }
+
+    #[test]
+    fn update_annotate_for_new_annotations() {
+        use crate::types::TwAnnotation;
+
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+        mock.push_run_response(Ok(String::new())); // annotate
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let mut new_task = make_task(uuid);
+        new_task.annotations = vec![TwAnnotation {
+            entry: Utc::now(),
+            description: "check expiry".to_string(),
+        }];
+
+        let old_task = make_task(uuid); // no annotations
+
+        adapter.update(&new_task, Some(&old_task)).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        // After UDA calls and modify, there should be an annotate call
+        let annotate_calls: Vec<_> = calls.iter().filter(|c| {
+            if let MockCall::Run(args) = c {
+                args.contains(&"annotate".to_string())
+            } else {
+                false
+            }
+        }).collect();
+        assert_eq!(annotate_calls.len(), 1, "expected 1 annotate call, got {:?}", annotate_calls);
+    }
+
+    #[test]
+    fn update_denotate_for_removed_annotations() {
+        use crate::types::TwAnnotation;
+
+        let mock = MockTaskRunner::new();
+        mock.push_run_response(Ok(String::new())); // uda type
+        mock.push_run_response(Ok(String::new())); // uda label
+        mock.push_run_response(Ok(String::new())); // modify
+        mock.push_run_response(Ok(String::new())); // denotate
+
+        let adapter = TwAdapter::new(mock).expect("new");
+        let uuid = Uuid::new_v4();
+        let new_task = make_task(uuid); // no annotations
+
+        let mut old_task = make_task(uuid);
+        old_task.annotations = vec![TwAnnotation {
+            entry: Utc::now(),
+            description: "old note".to_string(),
+        }];
+
+        adapter.update(&new_task, Some(&old_task)).expect("update");
+
+        let calls = adapter.runner.get_calls();
+        let denotate_calls: Vec<_> = calls.iter().filter(|c| {
+            if let MockCall::Run(args) = c {
+                args.contains(&"denotate".to_string())
+            } else {
+                false
+            }
+        }).collect();
+        assert_eq!(denotate_calls.len(), 1, "expected 1 denotate call, got {:?}", denotate_calls);
     }
 
     #[test]
