@@ -330,6 +330,29 @@ class CalDAVLibrary:
         )
         self._check_response(response)
 
+    def put_vtodo_raw_ical(self, collection_url, uid, ical_text):
+        """PUT raw iCalendar text directly, for compatibility edge-case tests.
+
+        This keyword enables tests with exact iCal content that cannot be
+        produced by the structured put_vtodo_with_fields keyword, such as
+        VALUE=DATE parameters, TZID parameters, and arbitrary X-properties.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier for the VTODO (used as the filename).
+            ical_text: Complete iCalendar text to PUT.
+
+        Raises:
+            AssertionError: On non-2xx HTTP response.
+        """
+        url = f"{collection_url}{uid}.ics"
+        response = self._session.put(
+            url,
+            data=ical_text.encode('utf-8'),
+            headers={'Content-Type': 'text/calendar; charset=utf-8'},
+        )
+        self._check_response(response)
+
     def get_vtodo_raw(self, collection_url, uid):
         """Retrieve the raw iCalendar text of a VTODO resource.
 

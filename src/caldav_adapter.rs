@@ -799,6 +799,108 @@ END:VCALENDAR</C:calendar-data>
     }
 
     #[test]
+    fn test_parse_multistatus_large() {
+        let mut xml = String::from(
+            r#"<?xml version="1.0"?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">"#,
+        );
+        for i in 1..=25 {
+            xml.push_str(&format!(
+                r#"<D:response><D:href>/cal/uid-{i:03}.ics</D:href><D:propstat><D:prop><D:getetag>"etag-{i:03}"</D:getetag><C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:uid-{i:03}
+SUMMARY:Task {i}
+END:VTODO
+END:VCALENDAR</C:calendar-data></D:prop></D:propstat></D:response>"#
+            ));
+        }
+        xml.push_str("</D:multistatus>");
+
+        let results = parse_multistatus_vtodos(&xml);
+        assert_eq!(results.len(), 25, "should parse all 25 VTODOs");
+        assert_eq!(results[0].vtodo.uid, "uid-001");
+        assert_eq!(results[24].vtodo.uid, "uid-025");
+        // Verify no UIDs are missing
+        for (i, fv) in results.iter().enumerate() {
+            assert_eq!(fv.vtodo.uid, format!("uid-{:03}", i + 1));
+        }
+    }
+
+    #[test]
+    fn test_parse_multistatus_special_chars() {
+        // Test Unicode characters and iCal-escaped content in VTODO.
+        // Real Radicale responses embed iCal text directly (no XML entity escaping
+        // needed for iCal content since it doesn't contain <, >, or &).
+        let xml = "<?xml version=\"1.0\"?>\n\
+<D:multistatus xmlns:D=\"DAV:\" xmlns:C=\"urn:ietf:params:xml:ns:caldav\">\n\
+  <D:response>\n\
+    <D:href>/cal/special-uid.ics</D:href>\n\
+    <D:propstat>\n\
+      <D:prop>\n\
+        <D:getetag>\"special-etag\"</D:getetag>\n\
+        <C:calendar-data>BEGIN:VCALENDAR\n\
+VERSION:2.0\n\
+BEGIN:VTODO\n\
+UID:special-uid\n\
+SUMMARY:Caf\u{00e9} meeting \u{2014} don\u{2019}t forget\n\
+DESCRIPTION:Line one\\nLine two\\, with comma\n\
+END:VTODO\n\
+END:VCALENDAR</C:calendar-data>\n\
+      </D:prop>\n\
+    </D:propstat>\n\
+  </D:response>\n\
+</D:multistatus>";
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(
+            results.len(),
+            1,
+            "should parse VTODO with special characters"
+        );
+        assert_eq!(results[0].vtodo.uid, "special-uid");
+        let summary = results[0].vtodo.summary.as_deref().unwrap_or("");
+        // Unicode characters should be preserved through XML + iCal parsing
+        assert!(
+            summary.contains("Caf\u{00e9}"),
+            "should preserve e-with-acute: {:?}",
+            summary
+        );
+        assert!(
+            summary.contains("\u{2014}"),
+            "should preserve em-dash: {:?}",
+            summary
+        );
+        assert!(
+            summary.contains("\u{2019}"),
+            "should preserve right single quote: {:?}",
+            summary
+        );
+        // iCal-escaped newline and comma in DESCRIPTION
+        let desc = results[0].vtodo.description.as_deref().unwrap_or("");
+        assert!(
+            desc.contains("Line one\nLine two"),
+            "should unescape \\n in description: {:?}",
+            desc
+        );
+        assert!(
+            desc.contains(", with comma"),
+            "should unescape \\, in description: {:?}",
+            desc
+        );
+    }
+
+    #[test]
+    fn test_parse_multistatus_empty() {
+        // Empty multistatus with no <response> elements
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+</D:multistatus>"#;
+
+        let results = parse_multistatus_vtodos(xml);
+        assert_eq!(results.len(), 0, "empty calendar should return empty vec");
+    }
+
+    #[test]
     fn mock_empty_responses_default_to_ok() {
         let mock = MockCalDavClient::new();
         // No responses queued — should return empty/None/Ok defaults
