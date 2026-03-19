@@ -17,7 +17,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 ### Relation Verification
 
 - [ ] **REL-01**: DEPENDS-ON relation syncs end-to-end with real Radicale server — TW depends UUIDs map to CalDAV RELATED-TO UIDs and back
-- [ ] **REL-02**: Cycle detection works end-to-end — circular dependencies are detected, warned, and skipped without data loss
+- [x] **REL-02**: Cycle detection works end-to-end — circular dependencies are detected, warned, and skipped without data loss
 - [ ] **REL-03**: tasks.org compatibility verified — DEPENDS-ON properties preserved through tasks.org+DAVx5 round-trip (or documented limitation)
 - [ ] **REL-04**: blocks (inverse depends) mapping verified — TW blocks correctly maps to RELATED-TO in reverse direction
 
@@ -90,7 +90,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUDIT-03 | Phase 1 | Complete |
 | AUDIT-04 | Phase 1 | Complete |
 | REL-01 | Phase 2 | Pending |
-| REL-02 | Phase 2 | Pending |
+| REL-02 | Phase 2 | Complete |
 | REL-03 | Phase 2 | Pending |
 | REL-04 | Phase 2 | Pending |
 | FIELD-01 | Phase 3 | Pending |
