@@ -31,9 +31,8 @@ future scenarios without requiring renumbering.
 | S-30–S-38 | Status Mapping        |
 | S-40–S-45 | Dependencies          |
 | S-50–S-55 | CLI Behavior          |
-| S-60–S-63 | Field Mapping         |
-| S-70–S-79 | Bulk Operations       |
-| S-80–S-89 | Multi-Sync Journeys   |
+| S-60–S-89 | Field Mapping         |
+| S-90–S-95 | Idempotency           |
 
 ## How to Read This Catalog
 
@@ -1722,7 +1721,7 @@ Stderr matches the anyhow error chain which will include a filesystem not-found 
 
 ---
 
-## Field Mapping (S-60 to S-63)
+## Field Mapping (S-60 to S-89)
 
 ### S-60 · Field Mapping — TW Description Syncs to VTODO SUMMARY
 
@@ -1908,7 +1907,7 @@ verified by the Robot test using a regex pattern: `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9
 | **Category** | Field Mapping |
 | **Robot Test Case Name** | `CalDAV SUMMARY-only VTODO Creates TW Task With Matching Description` |
 | **skip-unimplemented** | No |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Pass |
 
 **User Story**
 
@@ -1946,7 +1945,7 @@ Verifies that when no DESCRIPTION is present the SUMMARY is used as-is for the T
 | **Category** | Field Mapping |
 | **Robot Test Case Name** | `CalDAV DESCRIPTION-only VTODO Creates TW Task With Sentinel And Annotation` |
 | **skip-unimplemented** | No |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Pass |
 
 **User Story**
 
@@ -1987,7 +1986,7 @@ description). The actual content is preserved as an annotation.
 | **Category** | Field Mapping |
 | **Robot Test Case Name** | `TW Task With Annotation Syncs To CalDAV With SUMMARY And DESCRIPTION` |
 | **skip-unimplemented** | No |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Pass |
 
 **User Story**
 
@@ -2028,7 +2027,7 @@ The two fields must remain distinct.
 | **Category** | Field Mapping |
 | **Robot Test Case Name** | `CalDAV PRIORITY Maps To TW Priority Field` |
 | **skip-unimplemented** | No |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Pass |
 
 **User Story**
 
@@ -2067,7 +2066,7 @@ and the reverse for TW→CalDAV.
 | **Category** | Field Mapping |
 | **Robot Test Case Name** | `CalDAV-Only Task In Project Calendar Sets TW Project` |
 | **skip-unimplemented** | No |
-| **Status** | ⏳ Pending |
+| **Status** | ✅ Pass |
 
 **User Story**
 
@@ -2092,514 +2091,437 @@ Multi-calendar support requires multiple `[[calendar]]` entries in the caldawarr
 
 ---
 
-## Bulk Operations (S-70 to S-79)
+### S-69 · Field Mapping — TW Description Update Syncs to CalDAV SUMMARY
 
-### S-70 · Bulk Operations — 5 TW Tasks Synced to CalDAV on First Sync
+| Field | Value |
+|-------|-------|
+| **ID** | S-69 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Description Update Syncs To CalDAV SUMMARY` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice updates a TW task description from "Old title" to "New title". After sync the CalDAV VTODO SUMMARY reflects the new description.
+
+---
+
+### S-70 · Field Mapping — CalDAV VTODO DUE Syncs to TW Due Date
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-70 |
-| **Category** | Bulk Operations |
-| **Robot Test Case Name** | `Five TW Tasks Created In CalDAV On First Sync` |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV VTODO DUE Syncs To TW Due Date` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Alice has 5 pending TW tasks covering different projects. She runs sync for the first time. She
-expects all 5 tasks to appear in her CalDAV calendar and each to receive a caldavuid UDA.
-
-**Setup**
-- TW: 5 pending tasks (mix of descriptions), no `caldavuid` UDA set on any
-- CalDAV: empty calendar
-
-**Expected Stdout**
-```
-Synced: 5 created, 0 updated in CalDAV; 0 created, 0 updated in TW
-```
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0
-
-**Expected CalDAV State**
-5 VTODOs exist, each with SUMMARY matching one of the TW task descriptions
-
-**Expected TW State**
-All 5 TW tasks have a non-empty `caldavuid` UDA
-
-**Notes**
-Tests bulk push path. Output format from GAP_ANALYSIS.md §1.1.
+Alice creates a CalDAV VTODO with DUE:20260615T120000Z. After sync the TW task has due matching that date.
 
 ---
 
-### S-71 · Bulk Operations — 5 CalDAV VTODOs Synced to TW on First Sync
+### S-71 · Field Mapping — TW Due Update Syncs to CalDAV DUE
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-71 |
-| **Category** | Bulk Operations |
-| **Robot Test Case Name** | `Five CalDAV VTODOs Created In TW On First Sync` |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Due Update Syncs To CalDAV DUE` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Bob has 5 VTODOs already in his CalDAV calendar (added via another app). He runs caldawarrior
-sync. He expects all 5 to appear as TW tasks with `caldavuid` set.
-
-**Setup**
-- TW: empty (no tasks)
-- CalDAV: 5 VTODOs with SUMMARY and STATUS:NEEDS-ACTION
-
-**Expected Stdout**
-```
-Synced: 0 created, 0 updated in CalDAV; 5 created, 0 updated in TW
-```
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0
-
-**Expected CalDAV State**
-Unchanged (5 VTODOs)
-
-**Expected TW State**
-5 pending TW tasks created, each with `caldavuid` matching the corresponding VTODO UID
-
-**Notes**
-Tests bulk pull path. Output format from GAP_ANALYSIS.md §1.1.
+Alice changes the due date on a TW task from 2026-03-15 to 2026-06-20. After sync the CalDAV VTODO DUE property reflects the new date.
 
 ---
 
-### S-72 · Bulk Operations — 4 TW Tasks and 3 CalDAV VTODOs on First Sync (Mixed)
+### S-72 · Field Mapping — CalDAV DUE Update Syncs to TW Due
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-72 |
-| **Category** | Bulk Operations |
-| **Robot Test Case Name** | `Mixed First Sync Links Tasks From Both Sides` |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV DUE Update Syncs To TW Due` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Carol has 4 TW tasks and 3 CalDAV VTODOs from different sources. None are linked yet. She syncs
-for the first time. She expects 4 TW tasks to be pushed to CalDAV and 3 VTODOs to be pulled to
-TW, with all 7 items linked.
-
-**Setup**
-- TW: 4 pending tasks, no `caldavuid` set on any
-- CalDAV: 3 VTODOs
-
-**Expected Stdout**
-```
-Synced: 4 created, 0 updated in CalDAV; 3 created, 0 updated in TW
-```
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0
-
-**Expected CalDAV State**
-7 VTODOs total (4 new from TW + original 3)
-
-**Expected TW State**
-7 tasks total (4 original with `caldavuid` set + 3 new from CalDAV)
-
-**Notes**
-Tests simultaneous push and pull. Output format from GAP_ANALYSIS.md §1.1.
+Alice changes the DUE on a CalDAV VTODO. After sync the TW task due date reflects the change.
 
 ---
 
-### S-73 · Bulk Operations — Immediate Re-Sync of 5 Tasks Is a Stable Point
+### S-73 · Field Mapping — TW Due Clear Removes CalDAV DUE
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-73 |
-| **Category** | Bulk Operations |
-| **Robot Test Case Name** | `Bulk Stable Point Re-Sync Produces Zero Writes` |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Due Clear Removes CalDAV DUE Property` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-After a successful bulk first sync of 5 tasks, Alice runs sync again immediately without any
-changes. She expects zero writes and the summary to show all zeroes.
-
-**Setup**
-- TW and CalDAV already in sync (5 paired tasks)
-- No changes made since last sync
-
-**Expected Stdout**
-```
-Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
-```
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0
-
-**Expected CalDAV State**
-Unchanged
-
-**Expected TW State**
-Unchanged
-
-**Notes**
-Loop prevention check at scale. Output format from GAP_ANALYSIS.md §1.2.
+Alice clears the due date on a TW task. After sync the CalDAV VTODO should no longer have a DUE property.
 
 ---
 
-### S-74 · Bulk Operations — 5-Task Dry Run Produces 5 CREATE Lines and Correct Summary
+### S-74 · Field Mapping — CalDAV DUE Removal Syncs to TW Due Cleared
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-74 |
-| **Category** | Bulk Operations |
-| **Robot Test Case Name** | `Bulk Dry Run Shows Five Create Lines And Correct Summary` |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV DUE Removal Syncs To TW Due Cleared` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Dave wants to preview what sync would do before committing. He has 5 TW tasks not yet in CalDAV.
-He runs sync with `--dry-run`. He expects 5 `[DRY-RUN] [CREATE]` lines and a summary of 5
-creates.
-
-**Setup**
-- TW: 5 pending tasks, no `caldavuid` set
-- CalDAV: empty calendar
-- CLI invoked with `--dry-run` flag
-
-**Expected Stdout**
-```
-[DRY-RUN] [CREATE] CalDAV <- TW: {description}   (one line per task, 5 total)
-[DRY-RUN] Would: 5 create(s), 0 update(s), 0 delete(s), 0 skip(s)
-```
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0
-
-**Expected CalDAV State**
-Unchanged (empty — dry-run writes nothing)
-
-**Expected TW State**
-Unchanged (no `caldavuid` set — dry-run writes nothing)
-
-**Notes**
-Dry-run format from GAP_ANALYSIS.md §1.3. The 5 `[DRY-RUN] [CREATE]` lines are verified by count,
-not order, since task ordering may vary.
+Alice removes the DUE property from a CalDAV VTODO. After sync the TW task should have no due date.
 
 ---
 
-### S-75 · Bulk Operations — 4 TW Tasks Deleted from CalDAV Externally; All 4 Orphans Removed from TW
+### S-75 · Field Mapping — TW Scheduled Date Syncs to CalDAV DTSTART
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-75 |
-| **Category** | Bulk Operations |
-| **Robot Test Case Name** | `Four Orphaned TW Tasks Deleted After CalDAV Purge` |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Scheduled Date Syncs To CalDAV DTSTART` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Eve deleted 4 tasks directly from her CalDAV calendar. The TW tasks still have their `caldavuid`
-set. She runs sync. She expects all 4 orphaned TW tasks to be deleted, and the summary to reflect
-no creates or updates.
-
-**Setup**
-- TW: 4 tasks with valid `caldavuid` UDAs
-- CalDAV: empty (VTODOs deleted externally)
-
-**Expected Stdout**
-```
-Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
-```
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0
-
-**Expected CalDAV State**
-Empty
-
-**Expected TW State**
-All 4 tasks deleted (or completed, per deletion semantics)
-
-**Notes**
-Bulk orphan handling. Deletes are not reflected in the summary counters (GAP_ANALYSIS.md §1.1 —
-only creates and updates are shown). Output format from GAP_ANALYSIS.md §1.1.
+Alice creates a TW task with scheduled:2026-04-01. After sync the CalDAV VTODO has a DTSTART property matching that date.
 
 ---
 
-## Multi-Sync Journeys (S-80 to S-89)
-
-These are multi-step test scenarios. Each represents a realistic sequence of user actions across
-several sync runs. In Robot Framework these are implemented as a single test case with multiple
-sync steps and state assertions between steps.
-
-### S-80 · Multi-Sync Journey — Growing TW Task List Syncs Incrementally
+### S-76 · Field Mapping — CalDAV DTSTART Syncs to TW Scheduled Date
 
 | Field | Value |
 |-------|-------|
-| **Category** | Multi-Sync Journey |
-| **Robot Test Case Name** | `Growing TW Task List Syncs Incrementally` |
+| **ID** | S-76 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV DTSTART Syncs To TW Scheduled Date` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Frank starts with 2 TW tasks, syncs, then adds 2 more TW tasks, syncs again, then adds 1 more,
-syncs. He expects each sync to only push the new tasks and leave already-synced tasks alone.
-
-**Steps**
-1. Sync → stdout: `Synced: 2 created, 0 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV: 2 VTODOs. TW: 2 tasks with `caldavuid`.
-2. Add 2 more TW tasks (no `caldavuid`). Sync → stdout: `Synced: 2 created, 0 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV: 4 VTODOs. TW: 4 tasks with `caldavuid`.
-3. Add 1 more TW task. Sync → stdout: `Synced: 1 created, 0 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV: 5 VTODOs. TW: 5 tasks with `caldavuid`.
-4. Sync immediately again → `Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW` (stable point).
-
-**Setup**
-- TW: 2 pending tasks, no `caldavuid` set
-- CalDAV: empty calendar
-
-**Expected Final State** (after all steps)
-5 tasks in both TW and CalDAV, all paired, no duplicates.
-
-**Expected Stdout (each sync)**
-See Steps above.
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0 (each sync)
-
-**Notes**
-Validates that previously-synced tasks are not re-created. Tests the `caldavuid` lookup path.
+Alice creates a CalDAV VTODO with DTSTART:20260501T090000Z. After sync the TW task has a scheduled date matching that datetime.
 
 ---
 
-### S-81 · Multi-Sync Journey — Growing CalDAV Calendar Syncs Incrementally to TW
+### S-77 · Field Mapping — TW Scheduled Clear Removes CalDAV DTSTART
 
 | Field | Value |
 |-------|-------|
-| **Category** | Multi-Sync Journey |
-| **Robot Test Case Name** | `Growing CalDAV Calendar Syncs Incrementally To TW` |
+| **ID** | S-77 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Scheduled Clear Removes CalDAV DTSTART` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Grace uses a CalDAV client (e.g., a mobile app) to create tasks in her calendar. She creates 2
-VTODOs, syncs to TW, then creates 2 more VTODOs, syncs again. She expects each sync to create
-only the new TW tasks.
-
-**Steps**
-1. Sync → `Synced: 0 created, 0 updated in CalDAV; 2 created, 0 updated in TW`. TW: 2 tasks with `caldavuid`.
-2. Add 2 more VTODOs to CalDAV. Sync → `Synced: 0 created, 0 updated in CalDAV; 2 created, 0 updated in TW`. TW: 4 tasks.
-3. Sync immediately → `Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW` (stable).
-
-**Setup**
-- TW: empty
-- CalDAV: 2 VTODOs
-
-**Expected Final State** (after all steps)
-4 tasks in TW, 4 VTODOs in CalDAV, all paired.
-
-**Expected Stdout (each sync)**
-See Steps above.
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0 (each sync)
-
-**Notes**
-Validates that already-pulled VTODOs are not re-imported on subsequent syncs.
+Alice clears the scheduled date on a TW task. After sync the CalDAV VTODO should no longer have a DTSTART property.
 
 ---
 
-### S-82 · Multi-Sync Journey — Bidirectional Growth Converges Correctly
+### S-78 · Field Mapping — TW Priority Syncs to CalDAV PRIORITY
 
 | Field | Value |
 |-------|-------|
-| **Category** | Multi-Sync Journey |
-| **Robot Test Case Name** | `Bidirectional Growth Converges Correctly Over Multiple Syncs` |
+| **ID** | S-78 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Priority Syncs To CalDAV PRIORITY` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Henry adds tasks from TW on his laptop and from a CalDAV client on his phone, then syncs. Over
-three rounds, tasks accumulate from both sides. He expects all tasks to converge correctly.
-
-**Steps**
-1. Sync → `Synced: 1 created, 0 updated in CalDAV; 1 created, 0 updated in TW`. Both sides: 2 tasks total.
-2. Add 2 TW tasks + 2 CalDAV VTODOs (new, not yet synced). Sync → `Synced: 2 created, 0 updated in CalDAV; 2 created, 0 updated in TW`. Both sides: 6 tasks total.
-3. Add 1 TW task + 1 CalDAV VTODO. Sync → `Synced: 1 created, 0 updated in CalDAV; 1 created, 0 updated in TW`. Both sides: 8 tasks total.
-4. Sync → stable point: `Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW`.
-
-**Setup**
-- TW: 1 pending task, no `caldavuid`
-- CalDAV: 1 VTODO (new, never synced)
-
-**Expected Final State** (after all steps)
-8 tasks on each side, all paired, no duplicates, no data loss.
-
-**Expected Stdout (each sync)**
-See Steps above.
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0 (each sync)
-
-**Notes**
-Tests simultaneous incremental push and pull over multiple sync cycles.
+Alice creates a TW task with priority M. After sync the CalDAV VTODO has PRIORITY:5 (iCal medium).
 
 ---
 
-### S-83 · Multi-Sync Journey — Repeated TW Edits Propagate to CalDAV Each Sync
+### S-79 · Field Mapping — TW Priority Update Syncs to CalDAV PRIORITY
 
 | Field | Value |
 |-------|-------|
-| **Category** | Multi-Sync Journey |
-| **Robot Test Case Name** | `Repeated TW Edits Propagate To CalDAV Each Sync` |
+| **ID** | S-79 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Priority Update Syncs To CalDAV PRIORITY` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Iris creates a task in TW, syncs it to CalDAV, then edits the description in TW, syncs again,
-then edits again, syncs again. She expects each edit to be reflected in CalDAV after the next
-sync.
-
-**Steps**
-1. Sync → "Buy apples" appears in CalDAV with SUMMARY "Buy apples". Stable.
-2. Modify TW task description to "Buy apples and oranges" (newer `modified` timestamp). Sync → `Synced: 0 created, 1 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV VTODO SUMMARY = "Buy apples and oranges".
-3. Modify TW task description to "Buy fruit". Sync → `Synced: 0 created, 1 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV SUMMARY = "Buy fruit".
-4. Sync → stable point: `Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW`.
-
-**Setup**
-- TW: 1 pending task ("Buy apples"), no `caldavuid`
-- CalDAV: empty calendar
-
-**Expected Final State** (after all steps)
-TW task description = "Buy fruit", CalDAV VTODO SUMMARY = "Buy fruit".
-
-**Expected Stdout (each sync)**
-See Steps above.
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0 (each sync)
-
-**Notes**
-Each edit must produce a newer `modified` timestamp than the CalDAV VTODO's LAST-MODIFIED so that
-TW wins LWW on each cycle. Tests the update counter incrementing on each sync.
+Alice changes a TW task priority from M to H. After sync the CalDAV VTODO PRIORITY changes from 5 to 1.
 
 ---
 
-### S-84 · Multi-Sync Journey — Repeated CalDAV Edits Propagate to TW Each Sync
+### S-80 · Field Mapping — TW Priority Clear Removes CalDAV PRIORITY
 
 | Field | Value |
 |-------|-------|
-| **Category** | Multi-Sync Journey |
-| **Robot Test Case Name** | `Repeated CalDAV Edits Propagate To TW Each Sync` |
+| **ID** | S-80 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Priority Clear Removes CalDAV PRIORITY` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Jack edits a task from his phone (via CalDAV). He edits the SUMMARY twice, syncing between each
-edit. He expects TW to reflect the latest CalDAV state each time.
-
-**Steps**
-1. Edit CalDAV VTODO SUMMARY to "Meeting prep v2" (with newer LAST-MODIFIED). Sync → `Synced: 0 created, 0 updated in CalDAV; 0 created, 1 updated in TW`. TW task description = "Meeting prep v2".
-2. Edit CalDAV VTODO SUMMARY to "Meeting prep final". Sync → `Synced: 0 created, 0 updated in CalDAV; 0 created, 1 updated in TW`. TW task description = "Meeting prep final".
-3. Sync → stable point: `Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW`.
-
-**Setup**
-- 1 task already paired in both TW and CalDAV (from a prior sync). TW task description: "Meeting prep".
-
-**Expected Final State** (after all steps)
-TW task description = "Meeting prep final", CalDAV VTODO SUMMARY = "Meeting prep final".
-
-**Expected Stdout (each sync)**
-See Steps above.
-
-**Expected Stderr**
-(empty)
-
-**Exit Code**
-0 (each sync)
-
-**Notes**
-Each VTODO edit must carry a LAST-MODIFIED newer than the TW task's `modified` timestamp so that
-CalDAV wins LWW on each cycle.
+Alice clears the priority on a TW task. After sync the CalDAV VTODO should no longer have a PRIORITY property.
 
 ---
 
-### S-85 · Multi-Sync Journey — Full Task Lifecycle: Create, Edit from Both Sides, Complete
+### S-81 · Field Mapping — CalDAV CATEGORIES Syncs to TW Tags
 
 | Field | Value |
 |-------|-------|
-| **Category** | Multi-Sync Journey |
-| **Robot Test Case Name** | `Full Task Lifecycle Create Edit From Both Sides Then Complete` |
+| **ID** | S-81 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV CATEGORIES Syncs To TW Tags` |
 | **skip-unimplemented** | No |
-| **Status** | ⚠️ No test |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Kate creates a task in TW, syncs it, edits the description from CalDAV (phone), syncs back, then
-edits from TW, syncs, then marks it done in TW and syncs to complete in CalDAV. She expects the
-full lifecycle to work end-to-end.
+Alice creates a CalDAV VTODO with CATEGORIES:home,errands. After sync the TW task has tags home and errands.
 
-**Steps**
-1. Sync → "Write report" appears in CalDAV. `Synced: 1 created, 0 updated in CalDAV; 0 created, 0 updated in TW`. Stable.
-2. Edit CalDAV VTODO SUMMARY to "Write quarterly report". Sync → `Synced: 0 created, 0 updated in CalDAV; 0 created, 1 updated in TW`. TW description = "Write quarterly report". Stable.
-3. Edit TW task description to "Write quarterly report — DONE draft". Sync → `Synced: 0 created, 1 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV SUMMARY updated. Stable.
-4. Mark TW task as `done`. Sync → `Synced: 0 created, 1 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV VTODO STATUS = COMPLETED.
-5. Sync → stable point: `Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW`. CalDAV STATUS:COMPLETED. TW status: completed.
+---
 
-**Setup**
-- TW: 1 pending task ("Write report"), no `caldavuid`
-- CalDAV: empty calendar
+### S-82 · Field Mapping — TW Tags Update Syncs to CalDAV CATEGORIES
 
-**Expected Final State** (after all steps)
-TW task completed, CalDAV VTODO STATUS:COMPLETED, descriptions in sync.
+| Field | Value |
+|-------|-------|
+| **ID** | S-82 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Tags Update Syncs To CalDAV CATEGORIES` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
 
-**Expected Stdout (each sync)**
-See Steps above.
+**User Story**
 
-**Expected Stderr**
-(empty)
+Alice adds a new tag to a TW task (already has +work, adds +urgent). After sync the CalDAV VTODO CATEGORIES includes both tags.
 
-**Exit Code**
-0 (each sync)
+---
 
-**Notes**
-End-to-end lifecycle test. Covers first sync push, CalDAV-wins LWW, TW-wins LWW, and status
-mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
+### S-83 · Field Mapping — TW Tags Cleared Removes CalDAV CATEGORIES
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-83 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Tags Cleared Removes CalDAV CATEGORIES Property` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice removes all tags from a TW task. After sync the CalDAV VTODO should NOT have a CATEGORIES property (removed entirely, not empty).
+
+---
+
+### S-84 · Field Mapping — TW Annotation Update Syncs to CalDAV DESCRIPTION
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-84 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Annotation Update Syncs To CalDAV DESCRIPTION` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice adds an annotation to a TW task. After sync the CalDAV VTODO DESCRIPTION reflects the annotation text.
+
+---
+
+### S-85 · Field Mapping — CalDAV DESCRIPTION Update Syncs to TW Annotation
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-85 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `CalDAV DESCRIPTION Update Syncs To TW Annotation` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice edits the DESCRIPTION of a CalDAV VTODO. After sync the TW task annotation text matches the updated DESCRIPTION.
+
+---
+
+### S-86 · Field Mapping — TW Task Without Annotations Has No CalDAV DESCRIPTION
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-86 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Task Without Annotations Has No CalDAV DESCRIPTION` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice creates a TW task with no annotations. After sync the CalDAV VTODO should not have a DESCRIPTION property.
+
+---
+
+### S-87 · Field Mapping — TW Wait Date Syncs to CalDAV X-TASKWARRIOR-WAIT
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-87 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Wait Date Syncs To CalDAV X-TASKWARRIOR-WAIT` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice creates a TW task with wait:2026-12-01. After sync the CalDAV VTODO has an X-TASKWARRIOR-WAIT property with the matching date.
+
+---
+
+### S-88 · Field Mapping — TW Wait Clear Removes CalDAV X-TASKWARRIOR-WAIT
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-88 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `TW Wait Clear Removes CalDAV X-TASKWARRIOR-WAIT` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice clears the wait date on a TW task. After sync the CalDAV VTODO should no longer have an X-TASKWARRIOR-WAIT property.
+
+---
+
+### S-89 · Field Mapping — Completing Task Sets COMPLETED Timestamp And Reopening Clears It
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-89 |
+| **Category** | Field Mapping |
+| **Robot Test Case Name** | `Completing Task Sets COMPLETED Timestamp And Reopening Clears It` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice completes a TW task and verifies the CalDAV VTODO gains a COMPLETED timestamp. She then reopens the task (status=pending) and verifies the COMPLETED property is removed.
+
+---
+
+## Idempotency (S-90 to S-95)
+
+### S-90 · Idempotency -- Idempotent After TW Task Creation
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-90 |
+| **Category** | Idempotency |
+| **Robot Test Case Name** | `Idempotent After TW Task Creation` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice creates a TW task and syncs. Running sync a second time produces zero writes -- the task is already paired and nothing changed.
+
+---
+
+### S-91 · Idempotency -- Idempotent After CalDAV Task Creation
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-91 |
+| **Category** | Idempotency |
+| **Robot Test Case Name** | `Idempotent After CalDAV Task Creation` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice creates a CalDAV VTODO and syncs. Running sync again produces zero writes -- the task was pulled to TW and nothing changed.
+
+---
+
+### S-92 · Idempotency -- Idempotent After TW Field Update
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-92 |
+| **Category** | Idempotency |
+| **Robot Test Case Name** | `Idempotent After TW Field Update` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice updates due date, priority, and tags on a TW task and syncs. Running sync again produces zero writes -- all fields are in sync.
+
+---
+
+### S-93 · Idempotency -- Idempotent After CalDAV Field Update
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-93 |
+| **Category** | Idempotency |
+| **Robot Test Case Name** | `Idempotent After CalDAV Field Update` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice changes the SUMMARY on a CalDAV VTODO and syncs. Running sync again produces zero writes.
+
+---
+
+### S-94 · Idempotency -- Idempotent After TW Complete
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-94 |
+| **Category** | Idempotency |
+| **Robot Test Case Name** | `Idempotent After TW Complete` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice completes a TW task and syncs. Running sync again produces zero writes -- COMPLETED status and timestamp are in sync.
+
+---
+
+### S-95 · Idempotency -- Idempotent After TW Delete
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-95 |
+| **Category** | Idempotency |
+| **Robot Test Case Name** | `Idempotent After TW Delete` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice deletes a TW task and syncs (CalDAV becomes CANCELLED). Running sync again produces zero writes.
 
 ---
 
@@ -2620,10 +2542,18 @@ mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
 | S-20 | Orphan and Deletion | `Orphaned Caldavuid Causes TW Task Deletion` | No | ✅ Pass |
 | S-21 | Orphan and Deletion | `Externally Deleted CalDAV VTODO Causes TW Deletion` | No | ✅ Pass |
 | S-22 | Orphan and Deletion | `Re-Sync After Deletion Is Stable Point` | No | ✅ Pass |
+| S-23 | Orphan and Deletion | `CalDAV CANCELLED VTODO Without TW Pair Does Not Create Ghost Task` | No | ✅ Pass |
+| S-24 | Orphan and Deletion | `CalDAV COMPLETED VTODO Without TW Pair Does Not Create Task` | No | ✅ Pass |
+| S-25 | Orphan and Deletion | `CalDAV Completed And TW Completed Both Terminal Zero Writes` | No | ✅ Pass |
 | S-30 | Status Mapping | `CalDAV Completed Status Syncs To TW Completed` | No | ✅ Pass |
 | S-31 | Status Mapping | `TW Completed Status Syncs To CalDAV Completed` | No | ✅ Pass |
 | S-32 | Status Mapping | `Pending TW Task Stays Pending With Needs-Action VTODO` | No | ✅ Pass |
 | S-33 | Status Mapping | `Completed Task Within Cutoff Is Synced Beyond Is Not` | No | ✅ Pass |
+| S-34 | Status Mapping | `CalDAV Reopen Completed VTODO Syncs To TW Pending` | No | ✅ Pass |
+| S-35 | Status Mapping | `TW Reopen Completed Task Syncs To CalDAV Needs-Action` | No | ✅ Pass |
+| S-36 | Status Mapping | `TW Delete Syncs To CalDAV Cancelled` | No | ✅ Pass |
+| S-37 | Status Mapping | `CalDAV Cancelled Syncs To TW Deleted` | No | ✅ Pass |
+| S-38 | Status Mapping | `Both Sides Deleted And Cancelled Produces Zero Writes` | No | ✅ Pass |
 | S-40 | Dependencies | `TW Depends Syncs To CalDAV Related-To` | No | ✅ Pass |
 | S-41 | Dependencies | `CalDAV Related-To Syncs To TW Depends` | No | ✅ Pass |
 | S-42 | Dependencies | `Cyclic Tasks Synced Without Related-To` | No | ✅ Pass |
@@ -2640,22 +2570,37 @@ mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
 | S-61 | Field Mapping | `TW Due Date Syncs To VTODO DUE Property` | No | ✅ Pass |
 | S-62 | Field Mapping | `CalDAV VTODO Summary Syncs To TW Description` | No | ✅ Pass |
 | S-63 | Field Mapping | `Caldavuid UDA Stores CalDAV UID As UUID4 String` | No | ✅ Pass |
-| S-64 | Field Mapping | `CalDAV SUMMARY-only VTODO Creates TW Task With Matching Description` | No | ⏳ Pending |
-| S-65 | Field Mapping | `CalDAV DESCRIPTION-only VTODO Creates TW Task With Sentinel And Annotation` | No | ⏳ Pending |
-| S-66 | Field Mapping | `TW Task With Annotation Syncs To CalDAV With SUMMARY And DESCRIPTION` | No | ⏳ Pending |
-| S-67 | Field Mapping | `CalDAV PRIORITY Maps To TW Priority Field` | No | ⏳ Pending |
-| S-68 | Field Mapping | `CalDAV-Only Task In Project Calendar Sets TW Project` | No | ⏳ Pending |
-| S-70 | Bulk Operations | `Five TW Tasks Created In CalDAV On First Sync` | No | ⚠️ No test |
-| S-71 | Bulk Operations | `Five CalDAV VTODOs Created In TW On First Sync` | No | ⚠️ No test |
-| S-72 | Bulk Operations | `Mixed First Sync Links Tasks From Both Sides` | No | ⚠️ No test |
-| S-73 | Bulk Operations | `Bulk Stable Point Re-Sync Produces Zero Writes` | No | ⚠️ No test |
-| S-74 | Bulk Operations | `Bulk Dry Run Shows Five Create Lines And Correct Summary` | No | ⚠️ No test |
-| S-75 | Bulk Operations | `Four Orphaned TW Tasks Deleted After CalDAV Purge` | No | ⚠️ No test |
-| S-80 | Multi-Sync Journey | `Growing TW Task List Syncs Incrementally` | No | ⚠️ No test |
-| S-81 | Multi-Sync Journey | `Growing CalDAV Calendar Syncs Incrementally To TW` | No | ⚠️ No test |
-| S-82 | Multi-Sync Journey | `Bidirectional Growth Converges Correctly Over Multiple Syncs` | No | ⚠️ No test |
-| S-83 | Multi-Sync Journey | `Repeated TW Edits Propagate To CalDAV Each Sync` | No | ⚠️ No test |
-| S-84 | Multi-Sync Journey | `Repeated CalDAV Edits Propagate To TW Each Sync` | No | ⚠️ No test |
-| S-85 | Multi-Sync Journey | `Full Task Lifecycle Create Edit From Both Sides Then Complete` | No | ⚠️ No test |
+| S-64 | Field Mapping | `CalDAV SUMMARY-only VTODO Creates TW Task With Matching Description` | No | ✅ Pass |
+| S-65 | Field Mapping | `CalDAV DESCRIPTION-only VTODO Creates TW Task With Sentinel And Annotation` | No | ✅ Pass |
+| S-66 | Field Mapping | `TW Task With Annotation Syncs To CalDAV With SUMMARY And DESCRIPTION` | No | ✅ Pass |
+| S-67 | Field Mapping | `CalDAV PRIORITY Maps To TW Priority Field` | No | ✅ Pass |
+| S-68 | Field Mapping | `CalDAV-Only Task In Project Calendar Sets TW Project` | No | ✅ Pass |
+| S-69 | Field Mapping | `TW Description Update Syncs To CalDAV SUMMARY` | No | ✅ Pass |
+| S-70 | Field Mapping | `CalDAV VTODO DUE Syncs To TW Due Date` | No | ✅ Pass |
+| S-71 | Field Mapping | `TW Due Update Syncs To CalDAV DUE` | No | ✅ Pass |
+| S-72 | Field Mapping | `CalDAV DUE Update Syncs To TW Due` | No | ✅ Pass |
+| S-73 | Field Mapping | `TW Due Clear Removes CalDAV DUE Property` | No | ✅ Pass |
+| S-74 | Field Mapping | `CalDAV DUE Removal Syncs To TW Due Cleared` | No | ✅ Pass |
+| S-75 | Field Mapping | `TW Scheduled Date Syncs To CalDAV DTSTART` | No | ✅ Pass |
+| S-76 | Field Mapping | `CalDAV DTSTART Syncs To TW Scheduled Date` | No | ✅ Pass |
+| S-77 | Field Mapping | `TW Scheduled Clear Removes CalDAV DTSTART` | No | ✅ Pass |
+| S-78 | Field Mapping | `TW Priority Syncs To CalDAV PRIORITY` | No | ✅ Pass |
+| S-79 | Field Mapping | `TW Priority Update Syncs To CalDAV PRIORITY` | No | ✅ Pass |
+| S-80 | Field Mapping | `TW Priority Clear Removes CalDAV PRIORITY` | No | ✅ Pass |
+| S-81 | Field Mapping | `CalDAV CATEGORIES Syncs To TW Tags` | No | ✅ Pass |
+| S-82 | Field Mapping | `TW Tags Update Syncs To CalDAV CATEGORIES` | No | ✅ Pass |
+| S-83 | Field Mapping | `TW Tags Cleared Removes CalDAV CATEGORIES Property` | No | ✅ Pass |
+| S-84 | Field Mapping | `TW Annotation Update Syncs To CalDAV DESCRIPTION` | No | ✅ Pass |
+| S-85 | Field Mapping | `CalDAV DESCRIPTION Update Syncs To TW Annotation` | No | ✅ Pass |
+| S-86 | Field Mapping | `TW Task Without Annotations Has No CalDAV DESCRIPTION` | No | ✅ Pass |
+| S-87 | Field Mapping | `TW Wait Date Syncs To CalDAV X-TASKWARRIOR-WAIT` | No | ✅ Pass |
+| S-88 | Field Mapping | `TW Wait Clear Removes CalDAV X-TASKWARRIOR-WAIT` | No | ✅ Pass |
+| S-89 | Field Mapping | `Completing Task Sets COMPLETED Timestamp And Reopening Clears It` | No | ✅ Pass |
+| S-90 | Idempotency | `Idempotent After TW Task Creation` | No | ✅ Pass |
+| S-91 | Idempotency | `Idempotent After CalDAV Task Creation` | No | ✅ Pass |
+| S-92 | Idempotency | `Idempotent After TW Field Update` | No | ✅ Pass |
+| S-93 | Idempotency | `Idempotent After CalDAV Field Update` | No | ✅ Pass |
+| S-94 | Idempotency | `Idempotent After TW Complete` | No | ✅ Pass |
+| S-95 | Idempotency | `Idempotent After TW Delete` | No | ✅ Pass |
 
-**Total scenarios: 50** (46 active, 4 skip-unimplemented)
+**Total scenarios: 75** (70 active, 1 skipped (S-68 multi-calendar), 4 skip-unimplemented)
