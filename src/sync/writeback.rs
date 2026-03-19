@@ -229,14 +229,6 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
             let tw_status = tw.status.as_str();
             let caldav_status = vtodo.status.as_deref().unwrap_or("NEEDS-ACTION");
 
-            // Cyclic entries are unsafe to write-back; skip them.
-            if entry.cyclic {
-                return Some(PlannedOp::Skip {
-                    tw_uuid: Some(tw_uuid),
-                    reason: SkipReason::Cyclic,
-                });
-            }
-
             // Both sides already at their terminal deleted/cancelled state.
             if tw_status == "deleted" && caldav_status == "CANCELLED" {
                 return Some(PlannedOp::Skip {
@@ -458,6 +450,13 @@ fn apply_entry<R: TaskRunner>(
     now: DateTime<Utc>,
     result: &mut SyncResult,
 ) {
+    // Cyclic entries sync normally but WITHOUT dependency relations.
+    // Clear resolved_depends so build_vtodo_from_tw produces no RELATED-TO.
+    // This is done before decide_op to cover ALL branches (paired, TW-only).
+    if entry.cyclic {
+        entry.resolved_depends.clear();
+    }
+
     for attempt in 0..MAX_ETAG_RETRIES {
         let op = match decide_op(entry, now) {
             Some(op) => op,

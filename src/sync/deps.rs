@@ -145,6 +145,10 @@ pub fn resolve_dependencies(entries: &mut Vec<IREntry>) -> Vec<Warning> {
         }
     }
 
+    // Future enhancement: build a unified dependency graph from both
+    // tw_task.depends and fetched_vtodo.depends at the IR level, avoiding
+    // duplicate logic if CalDAV-side cycle detection is ever needed.
+
     warnings
 }
 
