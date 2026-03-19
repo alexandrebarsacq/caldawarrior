@@ -46,11 +46,11 @@ Plans:
   2. A circular dependency chain (A depends B depends C depends A) is detected during sync, logged as a warning, and skipped without corrupting any task
   3. DEPENDS-ON properties survive a round-trip through tasks.org + DAVx5, or the limitation is documented with evidence
   4. TW `blocks` relationships (inverse depends) produce the correct `RELATED-TO` mapping in CalDAV
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Change cyclic entry handling from skip to sync-without-deps (REL-02)
+- [ ] 02-02-PLAN.md — E2E dependency tests, blocks verification, dep removal, and tasks.org compatibility docs (REL-01, REL-02, REL-03, REL-04)
 
 ### Phase 3: Field and Sync Correctness
 **Goal**: Every mapped field creates, updates, clears, and round-trips correctly, and sync is idempotent
@@ -117,7 +117,7 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Code Audit and Bug Fixes | 3/3 | Complete | 2026-03-18 |
-| 2. Relation Verification | 0/? | Not started | - |
+| 2. Relation Verification | 0/2 | Not started | - |
 | 3. Field and Sync Correctness | 0/? | Not started | - |
 | 4. Compatibility | 0/? | Not started | - |
 | 5. CI/CD and Packaging | 0/? | Not started | - |
