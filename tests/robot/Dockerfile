@@ -1,9 +1,8 @@
-# Builder: rust:1.85-bookworm pinned 2026-03-01 (1.85 = minimum for Cargo edition 2024).
+# Builder: rust:1.94-bookworm (pinned 2026-03-19).
 # Runner:  archlinux:base (rolling) — used for taskwarrior 3.x; Debian only ships 2.6.x.
-# To upgrade Rust: update the builder FROM tag below.
 
-# Stage 1 — builder (rust:1.85-bookworm pinned 2026-03-01; 1.85 is minimum for Cargo edition 2024)
-FROM rust:1.85-bookworm AS builder
+# Stage 1 — builder
+FROM rust:1.94-bookworm AS builder
 
 WORKDIR /build
 
