@@ -94,18 +94,10 @@ fn dependency_sync_tw_to_caldav() {
     let vtodo_c = caldawarrior::types::VTODO {
         uid: Uuid::new_v4().to_string(),
         summary: Some("Task C from CalDAV (depends on A)".to_string()),
-        description: None,
         status: Some("NEEDS-ACTION".to_string()),
         last_modified: Some(Utc::now()),
-        dtstamp: None,
-        dtstart: None,
-        due: None,
-        completed: None,
-        categories: vec![],
-        rrule: None,
-        priority: None,
         depends: vec![(caldawarrior::types::RelType::DependsOn, caldavuid_a.clone())],
-        extra_props: vec![],
+        ..Default::default()
     };
     h.put_new_vtodo(vtodo_c);
     assert_eq!(h.count_caldav_vtodos(), 3);

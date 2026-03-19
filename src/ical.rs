@@ -164,10 +164,18 @@ pub fn to_icalendar_string(vtodo: &VTODO) -> String {
         lines.push(format!("LAST-MODIFIED:{}", format_datetime(last_modified)));
     }
     if let Some(dtstart) = vtodo.dtstart {
-        lines.push(format!("DTSTART:{}", format_datetime(dtstart)));
+        if vtodo.dtstart_is_date_only {
+            lines.push(format!("DTSTART;VALUE=DATE:{}", format_date_only(dtstart)));
+        } else {
+            lines.push(format!("DTSTART:{}", format_datetime(dtstart)));
+        }
     }
     if let Some(due) = vtodo.due {
-        lines.push(format!("DUE:{}", format_datetime(due)));
+        if vtodo.due_is_date_only {
+            lines.push(format!("DUE;VALUE=DATE:{}", format_date_only(due)));
+        } else {
+            lines.push(format!("DUE:{}", format_datetime(due)));
+        }
     }
     if let Some(completed) = vtodo.completed {
         lines.push(format!("COMPLETED:{}", format_datetime(completed)));
@@ -432,6 +440,11 @@ fn fold_line(line: &str) -> String {
 /// Format a UTC DateTime in iCal UTC format (YYYYMMDDTHHMMSSZ).
 fn format_datetime(dt: DateTime<Utc>) -> String {
     dt.format("%Y%m%dT%H%M%SZ").to_string()
+}
+
+/// Format a UTC DateTime as iCal DATE-only (YYYYMMDD).
+fn format_date_only(dt: DateTime<Utc>) -> String {
+    dt.format("%Y%m%d").to_string()
 }
 
 /// Detect whether a datetime property value represents a DATE-only value
@@ -949,5 +962,97 @@ mod tests {
         let vtodo = from_icalendar_string(ical).expect("parse");
         let dtstart = vtodo.dtstart.expect("dtstart should be present");
         assert_eq!(dtstart.hour(), 13, "14:00 CET = 13:00 UTC, got hour={}", dtstart.hour());
+    }
+
+    // ── DATE-only serialization tests (COMPAT-02) ────────────────────────
+
+    #[test]
+    fn test_date_only_due_serialized() {
+        let vtodo = VTODO {
+            uid: "ser-date-only-001".to_string(),
+            due: Some(Utc.with_ymd_and_hms(2026, 3, 15, 0, 0, 0).unwrap()),
+            due_is_date_only: true,
+            ..Default::default()
+        };
+        let s = to_icalendar_string(&vtodo);
+        assert!(s.contains("DUE;VALUE=DATE:20260315"), "should emit DUE;VALUE=DATE, got: {}", s);
+        assert!(!s.contains("DUE:20260315T"), "should NOT emit DUE with time component");
+    }
+
+    #[test]
+    fn test_datetime_due_serialized() {
+        let vtodo = VTODO {
+            uid: "ser-datetime-001".to_string(),
+            due: Some(Utc.with_ymd_and_hms(2026, 3, 15, 12, 0, 0).unwrap()),
+            due_is_date_only: false,
+            ..Default::default()
+        };
+        let s = to_icalendar_string(&vtodo);
+        assert!(s.contains("DUE:20260315T120000Z"), "should emit DUE with datetime, got: {}", s);
+        assert!(!s.contains("VALUE=DATE"), "should NOT contain VALUE=DATE");
+    }
+
+    #[test]
+    fn test_date_only_dtstart_serialized() {
+        let vtodo = VTODO {
+            uid: "ser-dtstart-date-001".to_string(),
+            dtstart: Some(Utc.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap()),
+            dtstart_is_date_only: true,
+            ..Default::default()
+        };
+        let s = to_icalendar_string(&vtodo);
+        assert!(s.contains("DTSTART;VALUE=DATE:20260401"), "should emit DTSTART;VALUE=DATE, got: {}", s);
+    }
+
+    #[test]
+    fn test_date_only_round_trip() {
+        // Parse -> serialize -> re-parse: DATE-only must be preserved
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:rt-date-only-001\r\n\
+            DUE;VALUE=DATE:20260315\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+
+        let vtodo1 = from_icalendar_string(ical).expect("first parse");
+        assert!(vtodo1.due_is_date_only, "first parse: due_is_date_only");
+
+        let serialized = to_icalendar_string(&vtodo1);
+        assert!(serialized.contains("DUE;VALUE=DATE:20260315"),
+            "serialized should contain DUE;VALUE=DATE:20260315, got: {}", serialized);
+
+        let vtodo2 = from_icalendar_string(&serialized).expect("second parse");
+        assert!(vtodo2.due_is_date_only, "round-trip: due_is_date_only preserved");
+        assert_eq!(vtodo2.due, vtodo1.due, "round-trip: due datetime preserved");
+    }
+
+    #[test]
+    fn test_datetime_round_trip_no_date_only() {
+        // Parse -> serialize -> verify: DATE-TIME must NOT become DATE-only
+        let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\n\
+            UID:rt-datetime-001\r\n\
+            DUE:20260315T120000Z\r\n\
+            END:VTODO\r\nEND:VCALENDAR\r\n";
+
+        let vtodo = from_icalendar_string(ical).expect("parse");
+        assert!(!vtodo.due_is_date_only, "datetime should NOT be date-only");
+
+        let serialized = to_icalendar_string(&vtodo);
+        assert!(serialized.contains("DUE:20260315T120000Z"),
+            "should preserve DUE datetime, got: {}", serialized);
+        assert!(!serialized.contains("VALUE=DATE"),
+            "should NOT contain VALUE=DATE in datetime round-trip");
+    }
+
+    #[test]
+    fn test_tw_originated_due_not_date_only() {
+        // TW-originated tasks default due_is_date_only to false
+        let vtodo = VTODO {
+            uid: "tw-orig-001".to_string(),
+            due: Some(Utc.with_ymd_and_hms(2026, 3, 15, 14, 0, 0).unwrap()),
+            ..Default::default()
+        };
+        assert!(!vtodo.due_is_date_only, "Default should be false");
+        let s = to_icalendar_string(&vtodo);
+        assert!(s.contains("DUE:20260315T140000Z"),
+            "TW-originated task should use DATE-TIME format, got: {}", s);
     }
 }
