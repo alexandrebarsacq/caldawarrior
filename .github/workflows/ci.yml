@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint (fmt + clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+  test:
+    name: Unit + Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run unit tests
+        run: cargo test --lib
+      - name: Run integration tests
+        run: cargo test --test integration
+
+  e2e:
+    name: E2E (Robot Framework)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create results directory
+        run: mkdir -p tests/robot/results
+      - name: Run RF E2E tests
+        run: |
+          CURRENT_UID=$(id -u) CURRENT_GID=$(id -g) \
+            docker compose -f tests/robot/docker-compose.yml run --rm robot
+      - name: Upload RF results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: tests/robot/results/
+
+  audit:
+    name: Security Audit (cargo-deny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
