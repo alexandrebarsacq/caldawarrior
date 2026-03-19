@@ -61,11 +61,12 @@ Plans:
   2. All status transitions (pending to completed, pending to deleted/CANCELLED, completed back to pending) work bidirectionally with correct field side-effects (COMPLETED timestamp set/cleared)
   3. Deleting a task on either side propagates correctly: TW delete produces CalDAV CANCELLED, CalDAV-side orphan is handled without creating ghost tasks
   4. Running sync twice consecutively after any operation produces zero writes on the second run
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Fix CANCELLED propagation bug, CalDAVLibrary infrastructure fixes, status transition and deletion E2E tests (FIELD-02, FIELD-03)
-- [ ] 03-02-PLAN.md — Comprehensive field create/update/clear E2E tests and dedicated idempotency suite (FIELD-01, FIELD-04)
+- [x] 03-01-PLAN.md — Fix CANCELLED propagation bug, CalDAVLibrary infrastructure fixes, status transition and deletion E2E tests (FIELD-02, FIELD-03)
+- [x] 03-02-PLAN.md — Comprehensive field create/update/clear E2E tests and dedicated idempotency suite (FIELD-01, FIELD-04)
+- [ ] 03-03-PLAN.md — Gap closure: revert tw.update() from task import to task modify with tag/annotation diff (FIELD-01, FIELD-02, FIELD-03, FIELD-04)
 
 ### Phase 4: Compatibility
 **Goal**: Caldawarrior handles real-world data formats from multiple servers and clients without data loss
@@ -118,7 +119,7 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 |-------|----------------|--------|-----------|
 | 1. Code Audit and Bug Fixes | 3/3 | Complete | 2026-03-18 |
 | 2. Relation Verification | 2/2 | Complete | 2026-03-19 |
-| 3. Field and Sync Correctness | 0/2 | Planned | - |
+| 3. Field and Sync Correctness | 2/3 | In Progress | - |
 | 4. Compatibility | 0/? | Not started | - |
 | 5. CI/CD and Packaging | 0/? | Not started | - |
 | 6. Documentation and Release | 0/? | Not started | - |
