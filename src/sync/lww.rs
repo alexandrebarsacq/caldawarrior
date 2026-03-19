@@ -282,15 +282,7 @@ mod tests {
             description: None, // no annotations on test tasks
             status: Some(status.to_string()),
             last_modified,
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         }
     }
 

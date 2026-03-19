@@ -221,7 +221,7 @@ pub struct IcalProp {
 // VTODO — CalDAV/iCalendar VTODO component (parsed representation)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VTODO {
     pub uid: String,
     pub summary: Option<String>,
@@ -243,6 +243,10 @@ pub struct VTODO {
     pub depends: Vec<(RelType, String)>,
     #[serde(default)]
     pub extra_props: Vec<IcalProp>,
+    #[serde(default)]
+    pub due_is_date_only: bool,
+    #[serde(default)]
+    pub dtstart_is_date_only: bool,
 }
 
 // ---------------------------------------------------------------------------

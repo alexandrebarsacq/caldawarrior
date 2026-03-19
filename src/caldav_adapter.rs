@@ -503,18 +503,8 @@ mod tests {
         VTODO {
             uid: uid.to_string(),
             summary: Some("Test".to_string()),
-            description: None,
             status: Some("NEEDS-ACTION".to_string()),
-            last_modified: None,
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         }
     }
 

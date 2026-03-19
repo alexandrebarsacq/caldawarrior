@@ -231,18 +231,7 @@ mod tests {
         VTODO {
             uid: Uuid::new_v4().to_string(),
             summary: Some("Buy milk".to_string()),
-            description: None,
-            status: None,
-            last_modified: None,
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         }
     }
 

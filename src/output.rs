@@ -209,18 +209,7 @@ mod tests {
         let vtodo = VTODO {
             uid: "test-uid-1".to_string(),
             summary: Some(summary.to_string()),
-            description: None,
-            status: None,
-            last_modified: None,
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         };
         let fetched = FetchedVTODO {
             href: "/cal/test.ics".to_string(),
@@ -412,19 +401,7 @@ mod tests {
     fn get_description_falls_back_to_caldav_uid_when_no_summary() {
         let vtodo = VTODO {
             uid: "no-summary-uid".to_string(),
-            summary: None,
-            description: None,
-            status: None,
-            last_modified: None,
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         };
         let fetched = FetchedVTODO {
             href: "/cal/x.ics".to_string(),

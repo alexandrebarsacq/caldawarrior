@@ -113,8 +113,13 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
         extra_props.push(wait_prop);
     }
 
-    // base is retained for future field-mapping phases that may need CalDAV data.
-    let _base = entry.fetched_vtodo.as_ref().map(|fv| &fv.vtodo);
+    // Propagate DATE-only flags from existing CalDAV VTODO; TW-originated
+    // tasks always use DATE-TIME (flags default to false).
+    let (due_is_date_only, dtstart_is_date_only) = entry
+        .fetched_vtodo
+        .as_ref()
+        .map(|fv| (fv.vtodo.due_is_date_only, fv.vtodo.dtstart_is_date_only))
+        .unwrap_or((false, false));
 
     VTODO {
         uid,
@@ -137,6 +142,8 @@ fn build_vtodo_from_tw(entry: &IREntry, tw: &TWTask, now: DateTime<Utc>) -> VTOD
             .map(|uid| (RelType::DependsOn, uid.clone()))
             .collect(),
         extra_props,
+        due_is_date_only,
+        dtstart_is_date_only,
     }
 }
 
@@ -691,15 +698,7 @@ mod tests {
             description: None, // no annotations on test tasks
             status: Some(status.to_string()),
             last_modified: Some(last_modified),
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         }
     }
 

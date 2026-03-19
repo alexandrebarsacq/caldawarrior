@@ -261,19 +261,9 @@ mod tests {
             etag: None,
             vtodo: VTODO {
                 uid: uid.to_string(),
-                summary: None,
-                description: None,
                 status: status.map(str::to_owned),
-                last_modified: None,
-                dtstamp: None,
-                dtstart: None,
-                due: None,
-                completed: None,
-                categories: vec![],
                 rrule: rrule.map(str::to_owned),
-                priority: None,
-                depends: vec![],
-                extra_props: vec![],
+                ..Default::default()
             },
         }
     }

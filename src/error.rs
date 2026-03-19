@@ -55,19 +55,7 @@ mod tests {
     fn etag_conflict_carries_vtodo() {
         let vtodo = VTODO {
             uid: "test-uid".to_string(),
-            summary: None,
-            description: None,
-            status: None,
-            last_modified: None,
-            dtstamp: None,
-            dtstart: None,
-            due: None,
-            completed: None,
-            categories: vec![],
-            rrule: None,
-            priority: None,
-            depends: vec![],
-            extra_props: vec![],
+            ..Default::default()
         };
         let fetched = FetchedVTODO {
             href: "/cal/test.ics".to_string(),
