@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-19T13:35:56.730Z"
-last_activity: "2026-03-19 -- Completed 04-02-PLAN.md (Compatibility test suite: XML edge cases + E2E round-trip)"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-19T14:30:02Z"
+last_activity: "2026-03-19 -- Completed 05-01-PLAN.md (CI pipeline and codebase cleanup)"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 12
+  completed_plans: 11
+  percent: 92
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Reliable bidirectional sync between TaskWarrior and CalDAV, including task dependency relationships that no other tool supports.
-**Current focus:** Phase 4 - Compatibility
+**Current focus:** Phase 5 - CI/CD and Packaging
 
 ## Current Position
 
-Phase: 4 of 6 (Compatibility)
-Plan: 2 of 2 in current phase (04-02 complete, phase complete)
+Phase: 5 of 6 (CI/CD and Packaging)
+Plan: 1 of 2 in current phase (05-01 complete)
 Status: in-progress
-Last activity: 2026-03-19 -- Completed 04-02-PLAN.md (Compatibility test suite: XML edge cases + E2E round-trip)
+Last activity: 2026-03-19 -- Completed 05-01-PLAN.md (CI pipeline and codebase cleanup)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██████████] 100%
 | Phase 03 P03 | 5  | 2 tasks | 2 files |
 | Phase 04 P01 | 17 | 2 tasks | 11 files |
 | Phase 04 P02 | 8  | 2 tasks | 3 files |
+| Phase 05 P01 | 21 | 2 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,10 @@ Recent decisions affecting current work:
 - [Phase 04]: is_date_only_value detects both explicit VALUE=DATE param and implicit 8-char YYYYMMDD format
 - [Phase 04]: XML special-chars test uses Unicode and iCal escapes (not XML entities) -- matches real Radicale behavior
 - [Phase 04]: S-100 coexistence test triggers writeback via TW summary modify -- simpler than wait-clear approach
+- [Phase 05]: crate-level #![allow(clippy::result_large_err)] -- intentionally large error enum, Phase 01 AUDIT-03 decision
+- [Phase 05]: Rust 2024 let-chains for collapsible_if fixes -- cleaner than alternatives
+- [Phase 05]: cargo-deny v0.19 format adapted -- advisories uses ignore list instead of deprecated fields
+- [Phase 05]: CDLA-Permissive-2.0 license allowed -- required by webpki-roots (rustls CA bundle)
 
 ### Pending Todos
 
@@ -104,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:35:56.723Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-ci-cd-and-packaging/05-CONTEXT.md
+Last session: 2026-03-19T14:30:02Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: .planning/phases/05-ci-cd-and-packaging/05-01-SUMMARY.md
