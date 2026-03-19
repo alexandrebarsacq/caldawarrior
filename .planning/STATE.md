@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-03-19T08:02:31Z"
-last_activity: 2026-03-19 -- Completed 03-02-PLAN.md (Field mapping E2E tests and idempotency suite)
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-03-19T09:53:33Z"
+last_activity: 2026-03-19 -- Completed 03-03-PLAN.md (Gap closure: tw.update() regression fix)
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
-  percent: 90
+  total_plans: 8
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 3 of 6 (Field and Sync Correctness) -- COMPLETE
-Plan: 2 of 2 in current phase (03-02 complete)
+Plan: 3 of 3 in current phase (03-03 complete)
 Status: in-progress
-Last activity: 2026-03-19 -- Completed 03-02-PLAN.md (Field mapping E2E tests and idempotency suite)
+Last activity: 2026-03-19 -- Completed 03-03-PLAN.md (Gap closure: tw.update() regression fix)
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [█████████░] 90%
 | Phase 02 P02 | 13 | 2 tasks | 5 files |
 | Phase 03 P01 | 9  | 3 tasks | 5 files |
 | Phase 03 P02 | 16 | 2 tasks | 7 files |
+| Phase 03 P03 | 5  | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -81,7 +82,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Completed status special-casing checks LWW timestamps before short-circuiting -- enables reopen propagation
 - [Phase 03]: SkipReason::Cancelled retained for CalDAV-only branch -- still needed by orphan logic
 - [Phase 03]: content_identical expanded to 10 fields (added PRIORITY and CATEGORIES) -- prevents LWW short-circuit on priority/tag-only changes
-- [Phase 03]: tw.update() switched from task modify to task import -- enables atomic upsert of all fields including tags and annotations
+- [Phase 03]: tw.update() reverted from task import back to task modify -- task import drops caldavuid UDA in Docker TW3, causing perpetual re-sync; tags diffed via +tag/-tag, annotations via annotate/denotate
 - [Phase 03]: CalDAV CATEGORIES mapped to TW tags in build_tw_task_from_caldav -- previously only TW-to-CalDAV direction worked
 
 ### Pending Todos
@@ -95,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T08:02:31Z
-Stopped at: Completed 03-02-PLAN.md
-Resume file: .planning/phases/03-field-and-sync-correctness/03-02-SUMMARY.md
+Last session: 2026-03-19T09:53:33Z
+Stopped at: Completed 03-03-PLAN.md
+Resume file: .planning/phases/03-field-and-sync-correctness/03-03-SUMMARY.md
