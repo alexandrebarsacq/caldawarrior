@@ -438,6 +438,96 @@ class TaskWarriorLibrary:
                 f"Current depends: {depends}"
             )
 
+    def tw_task_should_have_blocks(self, uuid, expected_blocked_uuid):
+        """Assert that a task is blocking another task (inverse of depends).
+
+        TW computes ``blocks`` as the inverse of ``depends`` -- if task A
+        depends on task B, then B blocks A.  TW 3.x does NOT include a
+        ``blocks`` field in ``task export`` JSON, so this keyword computes
+        the inverse relationship by exporting all pending tasks and checking
+        whether *expected_blocked_uuid*'s ``depends`` list contains *uuid*.
+
+        If the ``blocks`` field IS present in the export (possible in future
+        TW versions), it is checked directly as a fast path.
+
+        Args:
+            uuid: The UUID string of the blocking task.
+            expected_blocked_uuid: The UUID of the task that should depend
+                on (and therefore be blocked by) *uuid*.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If the expected blocking relationship is not found.
+        """
+        # Fast path: check if TW includes blocks in export
+        task = self.get_tw_task(uuid)
+        blocks = task.get('blocks', [])
+        if isinstance(blocks, str):
+            blocks = [b.strip() for b in blocks.split(',')]
+        if expected_blocked_uuid in blocks:
+            return
+
+        # Slow path (TW 3.x): compute blocks from all tasks' depends fields
+        blocked_task = self.get_tw_task(expected_blocked_uuid)
+        depends = blocked_task.get('depends', [])
+        if isinstance(depends, str):
+            depends = [d.strip() for d in depends.split(',')]
+        if uuid in depends:
+            return
+
+        raise AssertionError(
+            f"Task {uuid} does not block {expected_blocked_uuid}. "
+            f"Task {expected_blocked_uuid}'s depends: {depends}"
+        )
+
+    def force_tw_dependency(self, uuid, dependency_uuid):
+        """Force a dependency on a task, bypassing TW's cycle validation.
+
+        TaskWarrior 3.x rejects cyclic dependencies at modify time.  This
+        keyword uses ``task import`` to inject the dependency directly,
+        which bypasses the cycle check.  The task is re-imported with its
+        current fields plus the new dependency UUID appended.
+
+        Args:
+            uuid: The UUID of the task to add the dependency to.
+            dependency_uuid: The UUID of the task that *uuid* should depend on.
+
+        Returns:
+            None
+
+        Raises:
+            AssertionError: If the import fails.
+        """
+        task = self.get_tw_task(uuid)
+        depends = task.get('depends', [])
+        if isinstance(depends, str):
+            depends = [d.strip() for d in depends.split(',') if d.strip()]
+        if dependency_uuid not in depends:
+            depends.append(dependency_uuid)
+
+        import_data = json.dumps([{
+            'uuid': task['uuid'],
+            'description': task['description'],
+            'status': task['status'],
+            'depends': depends,
+        }])
+
+        result = subprocess.run(
+            ['task', 'import'],
+            input=import_data,
+            env=self._tw_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise AssertionError(
+                f"task import failed (exit {result.returncode}): "
+                f"{result.stderr.strip()}"
+            )
+
     def clear_tw_data(self):
         """Remove all TaskWarrior data from the configured data directory.
 
