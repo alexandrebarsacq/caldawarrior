@@ -210,6 +210,7 @@ systemctl --user enable --now caldawarrior.timer
 | TaskWarrior Field | CalDAV / VTODO Field         | Notes                        |
 |-------------------|------------------------------|------------------------------|
 | `description`     | `SUMMARY`                    | Primary task title           |
+| `annotations[0]`  | `DESCRIPTION`                  | First annotation only        |
 | `due`             | `DUE`                        | Datetime                     |
 | `scheduled`       | `DTSTART`                    | Datetime                     |
 | `wait`            | `X-TASKWARRIOR-WAIT`         | Custom property              |
@@ -387,13 +388,14 @@ include a `TZID` parameter. Radicale and Nextcloud both do this correctly by def
 
 ---
 
-### 12. No description or annotation sync
+### 12. Only first annotation synced to DESCRIPTION
 
-TaskWarrior annotations are not mapped to any CalDAV field. The CalDAV `DESCRIPTION` property
-is not imported into TaskWarrior. Only the `SUMMARY` field (mapped to `description`) is synced.
+The first TaskWarrior annotation is mapped bidirectionally to the CalDAV `DESCRIPTION` property.
+Only the first annotation is synced; additional annotations are ignored. If a task has multiple
+annotations, only the first one is visible on the CalDAV side.
 
-**Workaround:** Keep extended notes in one system only. Neither side will overwrite or delete
-the other's extended notes; they simply remain invisible across the sync boundary.
+**Workaround:** Keep essential notes in the first annotation. Use subsequent annotations for
+local-only context that does not need to cross the sync boundary.
 
 ---
 
