@@ -19,47 +19,45 @@ conflict resolution.
 - Password override via environment variable for CI/scripting
 - Runtime warning when config file permissions exceed 0600
 
-## Field Mapping
+## Installation
 
-| TaskWarrior Field | CalDAV / VTODO Field         | Notes                        |
-|-------------------|------------------------------|------------------------------|
-| `description`     | `SUMMARY`                    | Primary task title           |
-| `due`             | `DUE`                        | Datetime                     |
-| `scheduled`       | `DTSTART`                    | Datetime                     |
-| `wait`            | `X-TASKWARRIOR-WAIT`         | Custom property              |
-| `end`             | `COMPLETED`                  | Set when task is completed   |
-| `depends`         | `RELATED-TO;RELTYPE=DEPENDS-ON` | Task dependencies         |
-| `tags`            | `CATEGORIES`                 |                              |
-| `priority`        | `PRIORITY`                   |                              |
-| `project`         | Calendar collection URL      | Mapped via `calendars[]` config |
+### Pre-built Binary (Recommended)
 
-### Status Mapping
-
-| TaskWarrior Status | CalDAV Status   |
-|--------------------|-----------------|
-| `pending` / `waiting` | `NEEDS-ACTION` |
-| `completed`        | `COMPLETED`     |
-| `deleted`          | VTODO deleted   |
-| `recurring`        | Skipped (warning emitted) |
-
-## Quick Start
-
-**Step 1 — Install**
+Download the latest release for x86_64 Linux:
 
 ```bash
-cargo install --path .
+# Download binary and checksum
+curl -LO https://github.com/alexandrebarsacq/caldawarrior/releases/latest/download/caldawarrior-v1.0.0-x86_64-linux
+curl -LO https://github.com/alexandrebarsacq/caldawarrior/releases/latest/download/caldawarrior-v1.0.0-x86_64-linux.sha256
+
+# Verify checksum
+sha256sum -c caldawarrior-v1.0.0-x86_64-linux.sha256
+
+# Install
+chmod +x caldawarrior-v1.0.0-x86_64-linux
+sudo mv caldawarrior-v1.0.0-x86_64-linux /usr/local/bin/caldawarrior
 ```
 
-Or build from source:
+Check the [Releases page](https://github.com/alexandrebarsacq/caldawarrior/releases) for the latest version.
+
+### cargo install
 
 ```bash
-git clone https://github.com/example/caldawarrior
+cargo install --git https://github.com/alexandrebarsacq/caldawarrior.git
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/alexandrebarsacq/caldawarrior.git
 cd caldawarrior
 cargo build --release
 # binary is at target/release/caldawarrior
 ```
 
-**Step 2 — Configure** (with security note)
+## Quick Start
+
+**Step 1 — Configure** (with security note)
 
 Create the config directory and file:
 
@@ -88,7 +86,7 @@ url     = "https://dav.example.com/alice/work/"
 The tool emits a `[WARN]` to stderr at startup if the config file is more permissive than
 `0600` on Unix systems. Do not store this file in version control.
 
-**Step 3 — Register the TaskWarrior UDA**
+**Step 2 — Register the TaskWarrior UDA**
 
 caldawarrior uses a custom User Defined Attribute (`caldavuid`) to track which CalDAV VTODO each
 task corresponds to. Register it once:
@@ -98,7 +96,7 @@ task config uda.caldavuid.type  string
 task config uda.caldavuid.label CalDAVUID
 ```
 
-**Step 4 — Preview with dry-run**
+**Step 3 — Preview with dry-run**
 
 Run a dry-run first to see what would happen without making any changes:
 
@@ -108,13 +106,48 @@ caldawarrior sync --dry-run
 
 Review the output. No tasks or VTODOs are created, modified, or deleted in dry-run mode.
 
-**Step 5 — First live sync**
+**Step 4 — First live sync**
 
 ```bash
 caldawarrior sync
 ```
 
 The tool exits with status 0 on success and non-zero if any errors occurred during sync.
+
+## Config Reference
+
+### Options
+
+| Option | Type | Default | Required | Description |
+|--------|------|---------|----------|-------------|
+| `server_url` | string | -- | Yes | Base URL of the CalDAV server |
+| `username` | string | -- | Yes | CalDAV username for authentication |
+| `password` | string | -- | Yes | CalDAV password (see Environment Variables below) |
+| `completed_cutoff_days` | integer | `90` | No | Number of days of completed/deleted task history to include in sync |
+| `allow_insecure_tls` | boolean | `false` | No | Skip TLS certificate verification (for self-signed certificates) |
+| `caldav_timeout_seconds` | integer | `30` | No | HTTP request timeout in seconds for CalDAV operations |
+
+### Calendar Entries
+
+Each `[[calendar]]` section maps a TaskWarrior project to a CalDAV collection:
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `project` | string | Yes | TaskWarrior project name |
+| `url` | string | Yes | Full URL of the CalDAV calendar collection |
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `CALDAWARRIOR_PASSWORD` | Overrides the `password` field in config.toml |
+| `CALDAWARRIOR_CONFIG` | Path to config file (overrides default `~/.config/caldawarrior/config.toml`) |
+
+### Config Path Resolution
+
+1. `--config` CLI flag (highest priority)
+2. `CALDAWARRIOR_CONFIG` environment variable
+3. `~/.config/caldawarrior/config.toml` (default)
 
 ## CLI Reference
 
@@ -127,7 +160,95 @@ Options:
 Subcommands:
   sync            Sync TaskWarrior tasks with CalDAV
     --dry-run     Preview changes without writing anything
+    --fail-fast   Stop on first sync error instead of continuing
 ```
+
+## Scheduling
+
+### Cron
+
+```bash
+# Sync every 15 minutes with flock to prevent overlapping runs
+*/15 * * * * /usr/bin/flock -n /tmp/caldawarrior.lock /usr/local/bin/caldawarrior sync >> /var/log/caldawarrior.log 2>&1
+```
+
+### Systemd Timer
+
+Create two files:
+
+**`~/.config/systemd/user/caldawarrior.service`**
+```ini
+[Unit]
+Description=Sync TaskWarrior with CalDAV
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/caldawarrior sync
+```
+
+**`~/.config/systemd/user/caldawarrior.timer`**
+```ini
+[Unit]
+Description=Run caldawarrior sync periodically
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable and start:
+```bash
+systemctl --user enable --now caldawarrior.timer
+```
+
+## Field Mapping
+
+| TaskWarrior Field | CalDAV / VTODO Field         | Notes                        |
+|-------------------|------------------------------|------------------------------|
+| `description`     | `SUMMARY`                    | Primary task title           |
+| `due`             | `DUE`                        | Datetime                     |
+| `scheduled`       | `DTSTART`                    | Datetime                     |
+| `wait`            | `X-TASKWARRIOR-WAIT`         | Custom property              |
+| `end`             | `COMPLETED`                  | Set when task is completed   |
+| `depends`         | `RELATED-TO;RELTYPE=DEPENDS-ON` | Task dependencies         |
+| `tags`            | `CATEGORIES`                 |                              |
+| `priority`        | `PRIORITY`                   |                              |
+| `project`         | Calendar collection URL      | Mapped via `calendars[]` config |
+
+### Status Mapping
+
+| TaskWarrior Status | CalDAV Status   |
+|--------------------|-----------------|
+| `pending` / `waiting` | `NEEDS-ACTION` |
+| `completed`        | `COMPLETED`     |
+| `deleted`          | VTODO deleted   |
+| `recurring`        | Skipped (warning emitted) |
+
+## Compatibility
+
+### Servers
+
+| Server | Tier | Notes |
+|--------|------|-------|
+| Radicale | Tested | Full E2E test suite runs against Radicale. All features verified. |
+| Nextcloud | Expected | XML parser handles Nextcloud namespaces. Weak ETag normalization implemented. Not E2E tested. |
+| Baikal | Expected | Standard CalDAV compliance. Not E2E tested. |
+
+### Clients
+
+| Client | Tier | Notes |
+|--------|------|-------|
+| TaskWarrior 3.x | Tested | Primary sync target. Full bidirectional sync verified. |
+| tasks.org + DAVx5 | Tested* | Basic VTODO sync works. See DEPENDS-ON note below. |
+| Thunderbird | Expected | CalDAV VTODO support available. Not tested with caldawarrior. |
+
+**Tiers:** *Tested* = verified with E2E test suite. *Expected* = should work based on standards compliance, not E2E tested. *Unknown* = not evaluated.
+
+*\*DEPENDS-ON note:* caldawarrior syncs task dependencies using `RELATED-TO;RELTYPE=DEPENDS-ON` ([RFC 9253](https://datatracker.ietf.org/doc/html/rfc9253)). This property is preserved through sync by Radicale and DAVx5, but no tested CalDAV client currently renders DEPENDS-ON relationships in its UI. Dependencies work fully between TaskWarrior instances syncing through a CalDAV server. See [Known Limitation #15](#15-depends-on-relations-invisible-to-caldav-clients).
 
 ## v1 Known Limitations
 
@@ -296,6 +417,17 @@ it may have already been treated as a historical deletion.
 
 **Workaround:** Delete the VTODO in your CalDAV client and create a fresh one, or manually
 import it into TaskWarrior using `task import`. Then run a normal sync.
+
+---
+
+### 15. DEPENDS-ON relations invisible to CalDAV clients
+
+Task dependencies synced via `RELATED-TO;RELTYPE=DEPENDS-ON` (RFC 9253) are preserved on the
+CalDAV server but not displayed by any tested client (tasks.org, Thunderbird). Dependencies
+work correctly between TaskWarrior instances syncing through the same CalDAV server.
+
+**Workaround:** Use TaskWarrior directly to view and manage task dependencies. CalDAV clients
+will show tasks individually without dependency relationships.
 
 ---
 
