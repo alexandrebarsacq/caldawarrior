@@ -44,7 +44,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 - [ ] **DOC-01**: README covers installation, configuration, usage, and common workflows
 - [ ] **DOC-02**: All config.toml options documented with examples and defaults
-- [ ] **DOC-03**: CHANGELOG generated from git history
+- [x] **DOC-03**: CHANGELOG generated from git history
 - [ ] **DOC-04**: Client/server compatibility matrix documenting tested combinations and known limitations
 
 ## v2 Requirements
@@ -105,7 +105,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PKG-02 | Phase 5 | Complete |
 | DOC-01 | Phase 6 | Pending |
 | DOC-02 | Phase 6 | Pending |
-| DOC-03 | Phase 6 | Pending |
+| DOC-03 | Phase 6 | Complete |
 | DOC-04 | Phase 6 | Pending |
 
 **Coverage:**
