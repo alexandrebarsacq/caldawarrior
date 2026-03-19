@@ -13,11 +13,11 @@ Caldawarrior's core sync engine is implemented and backed by 170 Rust tests and 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Code Audit and Bug Fixes** - Fix CATEGORIES escaping, XML parser, ETag normalization, and error handling before any test expansion
-- [ ] **Phase 2: Relation Verification** - Prove dependency relations work end-to-end with real servers and document client limitations
-- [ ] **Phase 3: Field and Sync Correctness** - Verify all mapped fields, status transitions, deletion, and idempotency with E2E tests
-- [ ] **Phase 4: Compatibility** - Verify multi-server XML parsing, DATE-only values, timezone handling, and property preservation
+- [x] **Phase 2: Relation Verification** - Prove dependency relations work end-to-end with real servers and document client limitations
+- [x] **Phase 3: Field and Sync Correctness** - Verify all mapped fields, status transitions, deletion, and idempotency with E2E tests
+- [x] **Phase 4: Compatibility** - Verify multi-server XML parsing, DATE-only values, timezone handling, and property preservation
 - [x] **Phase 5: CI/CD and Packaging** - Automated pipeline running all tests, security audit, and binary release publishing
-- [ ] **Phase 6: Documentation and Release** - README, config reference, changelog, compatibility matrix, and ship
+- [x] **Phase 6: Documentation and Release** - README, config reference, changelog, compatibility matrix, and ship
 
 ## Phase Details
 
@@ -34,8 +34,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Fix CATEGORIES comma-escaping and TW tags-to-CATEGORIES mapping (AUDIT-01)
-- [ ] 01-02-PLAN.md — Replace XML parser with quick-xml NsReader and add ETag normalization (AUDIT-02, AUDIT-04)
-- [ ] 01-03-PLAN.md — Fix error context swallowing and add --fail-fast flag (AUDIT-03)
+- [x] 01-02-PLAN.md — Replace XML parser with quick-xml NsReader and add ETag normalization (AUDIT-02, AUDIT-04)
+- [x] 01-03-PLAN.md — Fix error context swallowing and add --fail-fast flag (AUDIT-03)
 
 ### Phase 2: Relation Verification
 **Goal**: Dependency relations -- caldawarrior's differentiator -- are proven to work end-to-end with real servers
@@ -49,8 +49,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Change cyclic entry handling from skip to sync-without-deps (REL-02)
-- [ ] 02-02-PLAN.md — E2E dependency tests, blocks verification, dep removal, and tasks.org compatibility docs (REL-01, REL-02, REL-03, REL-04)
+- [x] 02-01-PLAN.md — Change cyclic entry handling from skip to sync-without-deps (REL-02)
+- [x] 02-02-PLAN.md — E2E dependency tests, blocks verification, dep removal, and tasks.org compatibility docs (REL-01, REL-02, REL-03, REL-04)
 
 ### Phase 3: Field and Sync Correctness
 **Goal**: Every mapped field creates, updates, clears, and round-trips correctly, and sync is idempotent
@@ -81,7 +81,7 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md — DATE-only value preservation, DST ambiguity fix, writeback propagation, and unit tests (COMPAT-02, COMPAT-03)
-- [ ] 04-02-PLAN.md — Radicale XML edge-case tests, put_vtodo_raw_ical keyword, and E2E compatibility suite (COMPAT-01, COMPAT-04)
+- [x] 04-02-PLAN.md — Radicale XML edge-case tests, put_vtodo_raw_ical keyword, and E2E compatibility suite (COMPAT-01, COMPAT-04)
 
 ### Phase 5: CI/CD and Packaging
 **Goal**: Every commit is automatically tested, audited, and release-ready binaries are one push away
@@ -108,8 +108,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — README updates (Installation, Config Reference, Scheduling, Compatibility, limitation #15, CLI --fail-fast) and Cargo.toml version bump to 1.0.0 (DOC-01, DOC-02, DOC-04)
-- [ ] 06-02-PLAN.md — Create CHANGELOG.md with hand-curated entries from git history (DOC-03)
+- [x] 06-01-PLAN.md — README updates (Installation, Config Reference, Scheduling, Compatibility, limitation #15, CLI --fail-fast) and Cargo.toml version bump to 1.0.0 (DOC-01, DOC-02, DOC-04)
+- [x] 06-02-PLAN.md — Create CHANGELOG.md with hand-curated entries from git history (DOC-03)
 
 ## Progress
 
@@ -122,6 +122,6 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | 1. Code Audit and Bug Fixes | 3/3 | Complete | 2026-03-18 |
 | 2. Relation Verification | 2/2 | Complete | 2026-03-19 |
 | 3. Field and Sync Correctness | 3/3 | Complete | 2026-03-19 |
-| 4. Compatibility | 1/2 | In Progress | - |
-| 5. CI/CD and Packaging | 0/2 | Not started | - |
-| 6. Documentation and Release | 0/2 | Not started | - |
+| 4. Compatibility | 2/2 | Complete | 2026-03-19 |
+| 5. CI/CD and Packaging | 2/2 | Complete | 2026-03-19 |
+| 6. Documentation and Release | 2/2 | Complete | 2026-03-19 |

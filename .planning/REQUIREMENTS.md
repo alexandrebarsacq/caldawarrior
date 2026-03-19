@@ -42,10 +42,10 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Documentation
 
-- [ ] **DOC-01**: README covers installation, configuration, usage, and common workflows
-- [ ] **DOC-02**: All config.toml options documented with examples and defaults
+- [x] **DOC-01**: README covers installation, configuration, usage, and common workflows
+- [x] **DOC-02**: All config.toml options documented with examples and defaults
 - [x] **DOC-03**: CHANGELOG generated from git history
-- [ ] **DOC-04**: Client/server compatibility matrix documenting tested combinations and known limitations
+- [x] **DOC-04**: Client/server compatibility matrix documenting tested combinations and known limitations
 
 ## v2 Requirements
 
@@ -103,10 +103,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMPAT-04 | Phase 4 | Complete |
 | PKG-01 | Phase 5 | Complete |
 | PKG-02 | Phase 5 | Complete |
-| DOC-01 | Phase 6 | Pending |
-| DOC-02 | Phase 6 | Pending |
+| DOC-01 | Phase 6 | Complete |
+| DOC-02 | Phase 6 | Complete |
 | DOC-03 | Phase 6 | Complete |
-| DOC-04 | Phase 6 | Pending |
+| DOC-04 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 22 total

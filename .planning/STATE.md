@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-stopped_at: Completed 06-02-PLAN.md
+status: complete
+stopped_at: Completed 06-01-PLAN.md
 last_updated: "2026-03-19T17:57:51.115Z"
-last_activity: 2026-03-19 -- Completed 06-02-PLAN.md (CHANGELOG)
+last_activity: 2026-03-19 -- Completed 06-01-PLAN.md (README and version bump)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Reliable bidirectional sync between TaskWarrior and CalDAV, including task dependency relationships that no other tool supports.
-**Current focus:** Phase 6 - Documentation and Release (Plan 02 complete, Plan 01 pending)
+**Current focus:** Phase 6 complete -- all phases done, milestone v1.0 ready for release
 
 ## Current Position
 
-Phase: 6 of 6 (Documentation and Release)
-Plan: 2 of 2 in current phase (06-02 complete, 06-01 pending)
-Status: in-progress
-Last activity: 2026-03-19 -- Completed 06-02-PLAN.md (CHANGELOG)
+Phase: 6 of 6 (Documentation and Release) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: complete
+Last activity: 2026-03-19 -- Completed 06-01-PLAN.md (README and version bump)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 93%
 | Phase 04 P02 | 8  | 2 tasks | 3 files |
 | Phase 05 P01 | 21 | 2 tasks | 25 files |
 | Phase 05 P02 | 2  | 1 task  | 1 file  |
+| Phase 06 P01 | 5 | 2 tasks | 3 files |
 | Phase 06 P02 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
@@ -102,6 +103,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Separate release.yml from ci.yml -- different triggers (tags vs push/PR) and different build targets
 - [Phase 05]: release-musl cache key separate from CI cache -- MUSL target produces different compilation artifacts
 - [Phase 06]: CHANGELOG uses exact entries from plan -- all 19 entries describe user-facing changes only, no internal commits
+- [Phase 06]: README section ordering follows plan specification -- Installation > Quick Start > Config Reference > CLI Reference > Scheduling > Field Mapping > Compatibility > Known Limitations
+- [Phase 06]: Pre-built binary URL uses v1.0.0 example with Releases page link for latest version
+- [Phase 06]: Cargo.toml version bumped from 0.1.0 to 1.0.0 -- signals production readiness
 
 ### Pending Todos
 
@@ -114,6 +118,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T17:57:51.106Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-03-19T17:57:00.000Z
+Stopped at: Completed 06-01-PLAN.md -- all plans complete, milestone v1.0 ready
 Resume file: None
