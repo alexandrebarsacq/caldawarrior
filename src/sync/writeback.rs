@@ -246,19 +246,17 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
                 });
             }
 
-            // CalDAV was cancelled → skip (do not propagate to TW).
-            // If TW is also in a terminal state (completed), use CalDavDeletedTwTerminal
-            // to distinguish from the case where TW is still active.
+            // CalDAV was cancelled → propagate to TW.
             if caldav_status == "CANCELLED" {
-                let reason = if tw_status == "completed" {
-                    SkipReason::CalDavDeletedTwTerminal
-                } else {
-                    SkipReason::Cancelled
-                };
-                return Some(PlannedOp::Skip {
-                    tw_uuid: Some(tw_uuid),
-                    reason,
-                });
+                if tw_status == "completed" {
+                    // Both terminal states — skip.
+                    return Some(PlannedOp::Skip {
+                        tw_uuid: Some(tw_uuid),
+                        reason: SkipReason::CalDavDeletedTwTerminal,
+                    });
+                }
+                // CalDAV CANCELLED + TW active → delete TW task.
+                return Some(PlannedOp::DeleteFromTw(entry.clone()));
             }
 
             // TW was completed → mark CalDAV COMPLETED (if not already).
