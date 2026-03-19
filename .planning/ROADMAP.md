@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Compatibility** - Verify multi-server XML parsing, DATE-only values, timezone handling, and property preservation
 - [x] **Phase 5: CI/CD and Packaging** - Automated pipeline running all tests, security audit, and binary release publishing
 - [x] **Phase 6: Documentation and Release** - README, config reference, changelog, compatibility matrix, and ship
-- [ ] **Phase 7: README Accuracy Fixes** - Fix annotation/DESCRIPTION documentation inaccuracy, field mapping table, and tasks.org link
+- [x] **Phase 7: README Accuracy Fixes** - Fix annotation/DESCRIPTION documentation inaccuracy, field mapping table, and tasks.org link
 
 ## Phase Details
 
@@ -125,7 +125,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 07-01-PLAN.md — Correct Limitation 12, add Field Mapping row, remove stale v2 Roadmap entry, add tasks-org.md link (DOC-01)
+- [x] 07-01-PLAN.md — Correct Limitation 12, add Field Mapping row, remove stale v2 Roadmap entry, add tasks-org.md link (DOC-01)
 
 ## Progress
 
