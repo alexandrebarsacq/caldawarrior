@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Compatibility** - Verify multi-server XML parsing, DATE-only values, timezone handling, and property preservation
 - [x] **Phase 5: CI/CD and Packaging** - Automated pipeline running all tests, security audit, and binary release publishing
 - [x] **Phase 6: Documentation and Release** - README, config reference, changelog, compatibility matrix, and ship
+- [ ] **Phase 7: README Accuracy Fixes** - Fix annotation/DESCRIPTION documentation inaccuracy, field mapping table, and tasks.org link
 
 ## Phase Details
 
@@ -111,6 +112,21 @@ Plans:
 - [x] 06-01-PLAN.md — README updates (Installation, Config Reference, Scheduling, Compatibility, limitation #15, CLI --fail-fast) and Cargo.toml version bump to 1.0.0 (DOC-01, DOC-02, DOC-04)
 - [x] 06-02-PLAN.md — Create CHANGELOG.md with hand-curated entries from git history (DOC-03)
 
+### Phase 7: README Accuracy Fixes
+**Goal**: README accurately reflects all implemented features, with no misleading limitation entries or missing field mappings
+**Depends on**: Phase 3, Phase 6
+**Requirements**: DOC-01
+**Gap Closure**: Closes MISS-01, FLOW-01 from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. README Limitation 12 is corrected to reflect that annotation ↔ DESCRIPTION sync is implemented
+  2. README Field Mapping table includes an `annotations → DESCRIPTION` row
+  3. README Roadmap section no longer lists "Annotation / DESCRIPTION sync" as a v2 feature
+  4. README links to `docs/compatibility/tasks-org.md` from the Compatibility section
+**Plans**: 0 plans
+
+Plans:
+(none yet — run `/gsd:plan-phase 7`)
+
 ## Progress
 
 **Execution Order:**
@@ -125,3 +141,4 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | 4. Compatibility | 2/2 | Complete | 2026-03-19 |
 | 5. CI/CD and Packaging | 2/2 | Complete | 2026-03-19 |
 | 6. Documentation and Release | 2/2 | Complete | 2026-03-19 |
+| 7. README Accuracy Fixes | 0/0 | Pending | — |

@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMPAT-04 | Phase 4 | Complete |
 | PKG-01 | Phase 5 | Complete |
 | PKG-02 | Phase 5 | Complete |
-| DOC-01 | Phase 6 | Complete |
+| DOC-01 | Phase 6, Phase 7 (accuracy fix) | Complete |
 | DOC-02 | Phase 6 | Complete |
 | DOC-03 | Phase 6 | Complete |
 | DOC-04 | Phase 6 | Complete |
