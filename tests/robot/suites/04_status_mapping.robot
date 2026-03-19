@@ -73,3 +73,89 @@ Completed Task Within Cutoff Is Synced Beyond Is Not
     ${task2} =    TW.Get TW Task    ${uuid2}
     ${has_caldavuid} =    Evaluate    'caldavuid' in $task2
     Should Not Be True    ${has_caldavuid}
+
+CalDAV Reopen Completed VTODO Syncs To TW Pending
+    [Documentation]    S-34: Alice completes a TW task (synced to CalDAV COMPLETED), then
+    ...    her colleague reopens the VTODO in CalDAV by setting STATUS to NEEDS-ACTION.
+    ...    Alice runs sync and expects the TW task to be back to pending.
+    [Tags]    status-mapping
+    ${uuid} =    TW.Add TW Task    Task to reopen from CalDAV
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${task} =    TW.Get TW Task    ${uuid}
+    ${caldav_uid} =    Set Variable    ${task}[caldavuid]
+    TW.Complete TW Task    ${uuid}
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    CalDAV.VTODO Should Have Property    ${COLLECTION_URL}    ${caldav_uid}    STATUS    COMPLETED
+    CalDAV.Modify VTODO Status    ${COLLECTION_URL}    ${caldav_uid}    NEEDS-ACTION
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    TW.TW Task Should Have Status    ${uuid}    pending
+    CalDAV.VTODO Should Not Have Property    ${COLLECTION_URL}    ${caldav_uid}    COMPLETED
+
+TW Reopen Completed Task Syncs To CalDAV Needs-Action
+    [Documentation]    S-35: Alice marks a TW task as done, syncs (CalDAV COMPLETED), then
+    ...    modifies the task in TW (making it pending again). Sync should update CalDAV
+    ...    to NEEDS-ACTION and remove the COMPLETED timestamp.
+    [Tags]    status-mapping
+    ${uuid} =    TW.Add TW Task    Task to reopen from TW
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${task} =    TW.Get TW Task    ${uuid}
+    ${caldav_uid} =    Set Variable    ${task}[caldavuid]
+    TW.Complete TW Task    ${uuid}
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    CalDAV.VTODO Should Have Property    ${COLLECTION_URL}    ${caldav_uid}    STATUS    COMPLETED
+    TW.Modify TW Task    ${uuid}    status=pending
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    CalDAV.VTODO Should Have Property    ${COLLECTION_URL}    ${caldav_uid}    STATUS    NEEDS-ACTION
+    CalDAV.VTODO Should Not Have Property    ${COLLECTION_URL}    ${caldav_uid}    COMPLETED
+
+TW Delete Syncs To CalDAV Cancelled
+    [Documentation]    S-36: Alice deletes a TW task that was previously synced to CalDAV.
+    ...    After sync the CalDAV VTODO should have STATUS:CANCELLED.
+    [Tags]    status-mapping    deletion
+    ${uuid} =    TW.Add TW Task    Task to delete from TW
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${task} =    TW.Get TW Task    ${uuid}
+    ${caldav_uid} =    Set Variable    ${task}[caldavuid]
+    TW.Delete TW Task    ${uuid}
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    CalDAV.VTODO Should Have Property    ${COLLECTION_URL}    ${caldav_uid}    STATUS    CANCELLED
+
+CalDAV Cancelled Syncs To TW Deleted
+    [Documentation]    S-37: Alice's colleague cancels a CalDAV VTODO (STATUS:CANCELLED).
+    ...    Alice runs sync and expects the paired TW task to be deleted.
+    ...    This is the fix for the CANCELLED propagation asymmetry.
+    [Tags]    status-mapping    deletion
+    ${uuid} =    TW.Add TW Task    Task to cancel from CalDAV
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${task} =    TW.Get TW Task    ${uuid}
+    ${caldav_uid} =    Set Variable    ${task}[caldavuid]
+    CalDAV.Modify VTODO Status    ${COLLECTION_URL}    ${caldav_uid}    CANCELLED
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    TW.TW Task Should Have Status    ${uuid}    deleted
+
+Both Sides Deleted And Cancelled Produces Zero Writes
+    [Documentation]    S-38: Alice has a TW task marked deleted and the paired CalDAV VTODO
+    ...    is STATUS:CANCELLED. Running sync should produce zero writes (both terminal).
+    [Tags]    status-mapping    deletion
+    ${uuid} =    TW.Add TW Task    Task terminal on both sides
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${task} =    TW.Get TW Task    ${uuid}
+    ${caldav_uid} =    Set Variable    ${task}[caldavuid]
+    TW.Delete TW Task    ${uuid}
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    CalDAV.VTODO Should Have Property    ${COLLECTION_URL}    ${caldav_uid}    STATUS    CANCELLED
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    Sync Should Produce Zero Writes

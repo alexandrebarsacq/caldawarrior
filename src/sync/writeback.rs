@@ -260,21 +260,35 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
             }
 
             // TW was completed → mark CalDAV COMPLETED (if not already).
+            // But if CalDAV has a newer timestamp (reopened), fall through to LWW.
             if tw_status == "completed" && caldav_status != "COMPLETED" {
-                return Some(PlannedOp::ResolveConflict {
-                    entry: entry.clone(),
-                    winner: Side::Tw,
-                    reason: UpdateReason::TwCompletedMarkCompleted,
-                });
+                let tw_modified = tw.modified.unwrap_or(tw.entry);
+                let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
+                let caldav_is_newer = caldav_ts.map_or(false, |ct| ct > tw_modified);
+                if !caldav_is_newer {
+                    return Some(PlannedOp::ResolveConflict {
+                        entry: entry.clone(),
+                        winner: Side::Tw,
+                        reason: UpdateReason::TwCompletedMarkCompleted,
+                    });
+                }
+                // CalDAV is newer — fall through to LWW (reopen case).
             }
 
             // CalDAV COMPLETED → update TW to completed (if not already).
+            // But if TW has a newer timestamp (reopened), fall through to LWW.
             if caldav_status == "COMPLETED" && tw_status != "completed" {
-                return Some(PlannedOp::ResolveConflict {
-                    entry: entry.clone(),
-                    winner: Side::CalDav,
-                    reason: UpdateReason::CalDavCompletedUpdateTw,
-                });
+                let tw_modified = tw.modified.unwrap_or(tw.entry);
+                let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
+                let tw_is_newer = caldav_ts.map_or(true, |ct| tw_modified >= ct);
+                if !tw_is_newer {
+                    return Some(PlannedOp::ResolveConflict {
+                        entry: entry.clone(),
+                        winner: Side::CalDav,
+                        reason: UpdateReason::CalDavCompletedUpdateTw,
+                    });
+                }
+                // TW is newer — fall through to LWW (reopen case).
             }
 
             // General case: LWW conflict resolution (includes 8-field identical check).
@@ -1317,6 +1331,53 @@ mod tests {
         assert!(
             matches!(op, PlannedOp::DeleteFromTw(_)),
             "CalDAV CANCELLED + TW waiting should delete TW task, got {:?}",
+            op
+        );
+    }
+
+    #[test]
+    fn caldav_reopen_completed_falls_through_to_lww() {
+        // CalDAV NEEDS-ACTION (newer) + TW completed -> should fall through to LWW,
+        // not short-circuit to TwCompletedMarkCompleted.
+        let uuid = Uuid::new_v4();
+        let caldav_uid = uuid.to_string();
+        let tw_modified = t(2026, 2, 1, 10, 0, 0);
+        let caldav_lm = t(2026, 2, 1, 12, 0, 0); // CalDAV is newer
+        let entry = make_paired_entry(
+            uuid, &caldav_uid, "completed", tw_modified,
+            "NEEDS-ACTION", caldav_lm,
+        );
+        let op = decide_op(&entry, t(2026, 2, 2, 0, 0, 0)).unwrap();
+        // CalDAV wins LWW -> should be CalDav winner (reopen).
+        assert!(
+            matches!(op, PlannedOp::ResolveConflict { winner: Side::CalDav, .. }),
+            "CalDAV reopen (newer NEEDS-ACTION) should win over TW completed, got {:?}",
+            op
+        );
+    }
+
+    #[test]
+    fn tw_reopen_completed_falls_through_to_lww() {
+        // TW pending (newer) + CalDAV COMPLETED -> should fall through to LWW,
+        // not short-circuit to CalDavCompletedUpdateTw.
+        let uuid = Uuid::new_v4();
+        let caldav_uid = uuid.to_string();
+        let tw_modified = t(2026, 2, 1, 12, 0, 0); // TW is newer
+        let caldav_lm = t(2026, 2, 1, 10, 0, 0);
+        let mut entry = make_paired_entry(
+            uuid, &caldav_uid, "pending", tw_modified,
+            "COMPLETED", caldav_lm,
+        );
+        // Make content differ so LWW doesn't short-circuit to Identical.
+        if let Some(ref mut fv) = entry.fetched_vtodo {
+            fv.vtodo.summary = Some("Old summary".to_string());
+            fv.vtodo.description = Some("Old summary".to_string());
+        }
+        let op = decide_op(&entry, t(2026, 2, 2, 0, 0, 0)).unwrap();
+        // TW wins LWW -> should be TW winner (reopen).
+        assert!(
+            matches!(op, PlannedOp::ResolveConflict { winner: Side::Tw, .. }),
+            "TW reopen (newer pending) should win over CalDAV COMPLETED, got {:?}",
             op
         );
     }

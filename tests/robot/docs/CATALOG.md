@@ -27,8 +27,8 @@ future scenarios without requiring renumbering.
 |-----------|-----------------------|
 | S-01–S-05 | First Sync            |
 | S-10–S-14 | LWW Conflict          |
-| S-20–S-22 | Orphan and Deletion   |
-| S-30–S-33 | Status Mapping        |
+| S-20–S-25 | Orphan and Deletion   |
+| S-30–S-38 | Status Mapping        |
 | S-40–S-45 | Dependencies          |
 | S-50–S-55 | CLI Behavior          |
 | S-60–S-63 | Field Mapping         |
@@ -511,7 +511,7 @@ wins): {description}` line is produced by `format_planned_op()` in `src/output.r
 
 ---
 
-## Orphan and Deletion (S-20 to S-22)
+## Orphan and Deletion (S-20 to S-25)
 
 ### S-20 · Orphan — TW Task with Orphaned caldavuid Is Deleted from TW
 
@@ -645,7 +645,132 @@ stable point producing the zero-write summary.
 
 ---
 
-## Status Mapping (S-30 to S-33)
+### S-23 · Orphan — CalDAV CANCELLED VTODO Without TW Pair Does Not Create Ghost Task
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-23 |
+| **Category** | Orphan and Deletion |
+| **Robot Test Case Name** | `CalDAV Cancelled VTODO Without TW Pair Does Not Create Ghost Task` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+A CANCELLED VTODO exists on CalDAV but was never synced to TW (no TW pair). Running sync
+should NOT create a TW task for it -- terminal CalDAV-only entries are skipped.
+
+**Setup**
+- TW: no tasks
+- CalDAV: 1 VTODO with STATUS:CANCELLED, no paired TW task
+
+**Expected Stdout**
+```
+Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO unchanged (still CANCELLED)
+
+**Expected TW State**
+No tasks present (0 tasks)
+
+**Notes**
+Verifies that CalDAV-only CANCELLED VTODOs do not produce ghost TW tasks. The
+`SkipReason::Cancelled` branch handles this in writeback.rs.
+
+---
+
+### S-24 · Orphan — CalDAV COMPLETED VTODO Without TW Pair Does Not Create Task
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-24 |
+| **Category** | Orphan and Deletion |
+| **Robot Test Case Name** | `CalDAV Completed VTODO Without TW Pair Does Not Create Task` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+A COMPLETED VTODO exists on CalDAV but was never synced to TW. Running sync should NOT create
+a TW task (CalDAV-only terminal entries are skipped).
+
+**Setup**
+- TW: no tasks
+- CalDAV: 1 VTODO with STATUS:COMPLETED, no paired TW task
+
+**Expected Stdout**
+```
+Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO unchanged (still COMPLETED)
+
+**Expected TW State**
+No tasks present (0 tasks)
+
+**Notes**
+Verifies that CalDAV-only COMPLETED VTODOs are skipped. The `SkipReason::Completed` branch
+handles this in writeback.rs.
+
+---
+
+### S-25 · Orphan — CalDAV Completed And TW Completed Both Terminal Zero Writes
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-25 |
+| **Category** | Orphan and Deletion |
+| **Robot Test Case Name** | `CalDAV Completed And TW Completed Both Terminal Zero Writes` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice has a completed TW task paired with a COMPLETED CalDAV VTODO. Running sync should produce
+zero writes because both sides are terminal and identical.
+
+**Setup**
+- TW: 1 completed task with caldavuid set
+- CalDAV: 1 VTODO with STATUS:COMPLETED (from previous sync)
+
+**Expected Stdout**
+```
+Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO unchanged (COMPLETED)
+
+**Expected TW State**
+Task still completed
+
+**Notes**
+Verifies that both-terminal-completed is a stable point producing zero writes.
+
+---
+
+## Status Mapping (S-30 to S-38)
 
 ### S-30 · Status Mapping — CalDAV COMPLETED Syncs to TW Completed
 
@@ -821,6 +946,211 @@ Recently completed task has `caldavuid` set; old completed task has no `caldavui
 Output format sourced from GAP_ANALYSIS.md §1.1. `completed_cutoff_days` is documented in
 GAP_ANALYSIS.md §2.2. Tasks beyond the cutoff generate `PlannedOp::Skip` and are not counted
 in the summary.
+
+---
+
+### S-34 · Status Mapping — CalDAV Reopen Completed VTODO Syncs To TW Pending
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-34 |
+| **Category** | Status Mapping |
+| **Robot Test Case Name** | `CalDAV Reopen Completed VTODO Syncs To TW Pending` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice completes a TW task (synced to CalDAV COMPLETED), then her colleague reopens the VTODO
+in CalDAV by setting STATUS to NEEDS-ACTION. Alice runs sync and expects the TW task to be
+back to pending.
+
+**Setup**
+- TW: 1 completed task with caldavuid set
+- CalDAV: 1 VTODO with STATUS:NEEDS-ACTION (reopened), LAST-MODIFIED newer than TW
+
+**Expected Stdout**
+Sync summary showing 1 updated in TW
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO has STATUS:NEEDS-ACTION, no COMPLETED property
+
+**Expected TW State**
+Task is pending
+
+**Notes**
+Tests bidirectional reopen from CalDAV side. COMPLETED timestamp must be cleared when
+reopening, otherwise it would confuse future syncs.
+
+---
+
+### S-35 · Status Mapping — TW Reopen Completed Task Syncs To CalDAV Needs-Action
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-35 |
+| **Category** | Status Mapping |
+| **Robot Test Case Name** | `TW Reopen Completed Task Syncs To CalDAV Needs-Action` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice marks a TW task as done, syncs (CalDAV COMPLETED), then modifies the task in TW
+(making it pending again). Sync should update CalDAV to NEEDS-ACTION and remove the COMPLETED
+timestamp.
+
+**Setup**
+- TW: 1 pending task (reopened from completed) with caldavuid set
+- CalDAV: 1 VTODO with STATUS:COMPLETED (from previous sync)
+
+**Expected Stdout**
+Sync summary showing 1 updated in CalDAV
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO has STATUS:NEEDS-ACTION, no COMPLETED property
+
+**Expected TW State**
+Task is pending
+
+**Notes**
+Tests bidirectional reopen from TW side. Verifies that COMPLETED timestamp is cleared in
+CalDAV when task is reopened from TW.
+
+---
+
+### S-36 · Status Mapping — TW Delete Syncs To CalDAV Cancelled
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-36 |
+| **Category** | Status Mapping |
+| **Robot Test Case Name** | `TW Delete Syncs To CalDAV Cancelled` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice deletes a TW task that was previously synced to CalDAV. After sync the CalDAV VTODO
+should have STATUS:CANCELLED.
+
+**Setup**
+- TW: 1 deleted task with caldavuid set
+- CalDAV: 1 VTODO with STATUS:NEEDS-ACTION (from previous sync)
+
+**Expected Stdout**
+Sync summary showing 1 updated in CalDAV
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO has STATUS:CANCELLED
+
+**Expected TW State**
+Task is deleted
+
+**Notes**
+Verifies TW delete propagation to CalDAV. The `UpdateReason::TwDeletedMarkCancelled` branch
+handles this.
+
+---
+
+### S-37 · Status Mapping — CalDAV CANCELLED Syncs To TW Deleted
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-37 |
+| **Category** | Status Mapping |
+| **Robot Test Case Name** | `CalDAV Cancelled Syncs To TW Deleted` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice's colleague cancels a CalDAV VTODO (STATUS:CANCELLED). Alice runs sync and expects the
+paired TW task to be deleted. This is the fix for the CANCELLED propagation asymmetry.
+
+**Setup**
+- TW: 1 pending task with caldavuid set
+- CalDAV: 1 VTODO with STATUS:CANCELLED, LAST-MODIFIED newer than TW
+
+**Expected Stdout**
+Sync summary showing deletion
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO unchanged (STATUS:CANCELLED)
+
+**Expected TW State**
+Task is deleted
+
+**Notes**
+This is the key scenario for the CANCELLED propagation fix (writeback.rs). Before the fix,
+CalDAV CANCELLED + TW active produced `SkipReason::Cancelled` instead of
+`PlannedOp::DeleteFromTw`.
+
+---
+
+### S-38 · Status Mapping — Both Sides Deleted And Cancelled Produces Zero Writes
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-38 |
+| **Category** | Status Mapping |
+| **Robot Test Case Name** | `Both Sides Deleted And Cancelled Produces Zero Writes` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice has a TW task marked deleted and the paired CalDAV VTODO is STATUS:CANCELLED. Running
+sync should produce zero writes (both terminal).
+
+**Setup**
+- TW: 1 deleted task with caldavuid set
+- CalDAV: 1 VTODO with STATUS:CANCELLED (from previous delete sync)
+
+**Expected Stdout**
+```
+Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+VTODO unchanged (CANCELLED)
+
+**Expected TW State**
+Task still deleted
+
+**Notes**
+Verifies that TW deleted + CalDAV CANCELLED is a stable point. The
+`SkipReason::CalDavDeletedTwTerminal` branch handles this (TW deleted is a terminal state).
 
 ---
 

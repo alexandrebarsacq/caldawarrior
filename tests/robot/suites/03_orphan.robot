@@ -60,3 +60,39 @@ Re-Sync After Deletion Is Stable Point
     Run Caldawarrior Sync
     Exit Code Should Be    0
     Sync Should Produce Zero Writes
+
+CalDAV Cancelled VTODO Without TW Pair Does Not Create Ghost Task
+    [Documentation]    S-23: A CANCELLED VTODO exists on CalDAV but was never synced to TW
+    ...    (no TW pair). Running sync should NOT create a TW task for it.
+    [Tags]    orphan    deletion
+    ${uid} =    Set Variable    vtodo-s23-ghost-cancelled-001
+    CalDAV.Put VTODO    ${COLLECTION_URL}    ${uid}    Ghost cancelled task    status=CANCELLED
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${count} =    TW.TW Task Count
+    Should Be Equal As Integers    ${count}    0
+
+CalDAV Completed VTODO Without TW Pair Does Not Create Task
+    [Documentation]    S-24: A COMPLETED VTODO exists on CalDAV but was never synced to TW.
+    ...    Running sync should NOT create a TW task (CalDAV-only terminal entries are skipped).
+    [Tags]    orphan    deletion
+    ${uid} =    Set Variable    vtodo-s24-ghost-completed-001
+    CalDAV.Put VTODO    ${COLLECTION_URL}    ${uid}    Ghost completed task    status=COMPLETED
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    ${count} =    TW.TW Task Count
+    Should Be Equal As Integers    ${count}    0
+
+CalDAV Completed And TW Completed Both Terminal Zero Writes
+    [Documentation]    S-25: Alice has a completed TW task paired with a COMPLETED CalDAV VTODO.
+    ...    Running sync should produce zero writes (both terminal, identical).
+    [Tags]    orphan    deletion
+    ${uuid} =    TW.Add TW Task    Terminal both sides completed
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    TW.Complete TW Task    ${uuid}
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    Run Caldawarrior Sync
+    Exit Code Should Be    0
+    Sync Should Produce Zero Writes
