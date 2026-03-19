@@ -1080,7 +1080,7 @@ mod tests {
     }
 
     #[test]
-    fn cyclic_entry_skipped() {
+    fn cyclic_entry_synced_without_deps() {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
         let mut entry = make_paired_entry(
@@ -1088,14 +1088,99 @@ mod tests {
             "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
         );
         entry.cyclic = true;
+        entry.resolved_depends = vec!["some-uid".to_string()];
+        // Make content differ so LWW doesn't short-circuit to Identical.
+        if let Some(ref mut fv) = entry.fetched_vtodo {
+            fv.vtodo.summary = Some("Old summary".to_string());
+            fv.vtodo.description = Some("Old summary".to_string());
+        }
         let mut ir = vec![entry];
 
         let tw = make_tw_adapter(MockTaskRunner::new());
         let caldav = MockCalDavClient::new();
         let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
-        assert_eq!(result.skipped, 1);
-        assert_eq!(result.written_caldav, 0);
+        // Cyclic entry IS written to CalDAV (not skipped).
+        assert_eq!(result.written_caldav, 1, "cyclic entry must be written to CalDAV");
+        assert_eq!(result.skipped, 0, "cyclic entry must NOT be skipped");
+
+        // CalDAV mock received a Put call.
+        let calls = caldav.calls.lock().unwrap();
+        assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
+            "expected a Put call for the cyclic entry");
+
+        // After writeback, resolved_depends should have been cleared (no RELATED-TO in VTODO).
+        assert!(ir[0].resolved_depends.is_empty(),
+            "resolved_depends must be cleared for cyclic entries");
+    }
+
+    #[test]
+    fn cyclic_tw_only_entry_pushed_without_deps() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        let mut entry = make_tw_only_entry(uuid, &caldav_uid, "pending");
+        entry.cyclic = true;
+        entry.resolved_depends = vec!["some-uid".to_string()];
+        let mut ir = vec![entry];
+
+        let mock_tw = MockTaskRunner::new();
+        mock_tw.push_run_response(Ok(String::new())); // uda type
+        mock_tw.push_run_response(Ok(String::new())); // uda label
+        mock_tw.push_run_response(Ok(String::new())); // tw.update() for caldavuid
+        let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
+
+        let caldav = MockCalDavClient::new();
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
+
+        // TW-only cyclic entry IS pushed to CalDAV.
+        assert_eq!(result.written_caldav, 1, "TW-only cyclic entry must be pushed to CalDAV");
+        assert_eq!(result.skipped, 0, "TW-only cyclic entry must NOT be skipped");
+
+        // CalDAV mock received a Put call.
+        let calls = caldav.calls.lock().unwrap();
+        assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
+            "expected a Put call for the TW-only cyclic entry");
+
+        // resolved_depends should have been cleared.
+        assert!(ir[0].resolved_depends.is_empty(),
+            "resolved_depends must be cleared for TW-only cyclic entries");
+    }
+
+    #[test]
+    fn non_cyclic_entry_preserves_resolved_depends() {
+        let uuid = Uuid::new_v4();
+        let caldav_uid = Uuid::new_v4().to_string();
+        // TW modified more recently than CalDAV → TW wins LWW.
+        let mut entry = make_paired_entry(
+            uuid, &caldav_uid, "pending", t(2026, 2, 1, 11, 0, 0),
+            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
+        );
+        entry.cyclic = false;
+        entry.resolved_depends = vec!["dep-uid".to_string()];
+        // Make content differ so LWW doesn't short-circuit to Identical.
+        if let Some(ref mut fv) = entry.fetched_vtodo {
+            fv.vtodo.summary = Some("Old summary".to_string());
+            fv.vtodo.description = Some("Old summary".to_string());
+        }
+        let mut ir = vec![entry];
+
+        let tw = make_tw_adapter(MockTaskRunner::new());
+        let caldav = MockCalDavClient::new();
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
+
+        // Non-cyclic entry should be written.
+        assert_eq!(result.written_caldav, 1);
+
+        // CalDAV mock received a Put call.
+        let calls = caldav.calls.lock().unwrap();
+        assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
+            "expected a Put call for the non-cyclic entry");
+
+        // The VTODO stored on the entry should contain RELATED-TO with dep-uid.
+        let vtodo = &ir[0].fetched_vtodo.as_ref().expect("should have fetched_vtodo after put").vtodo;
+        assert!(!vtodo.depends.is_empty(), "non-cyclic entry must preserve RELATED-TO");
+        assert_eq!(vtodo.depends[0].1, "dep-uid",
+            "non-cyclic entry must have dep-uid in RELATED-TO");
     }
 
     #[test]
