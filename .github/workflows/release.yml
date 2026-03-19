@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-musl
+      - name: Build static binary
+        run: cargo build --release --target x86_64-unknown-linux-musl
+      - name: Prepare release assets
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          BINARY_NAME="caldawarrior-${VERSION}-x86_64-linux"
+          cp target/x86_64-unknown-linux-musl/release/caldawarrior "${BINARY_NAME}"
+          sha256sum "${BINARY_NAME}" > "${BINARY_NAME}.sha256"
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            caldawarrior-v*-x86_64-linux
+            caldawarrior-v*-x86_64-linux.sha256
