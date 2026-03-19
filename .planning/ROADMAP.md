@@ -90,10 +90,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A GitHub Actions CI workflow runs cargo fmt check, clippy, unit tests, integration tests, RF E2E tests, and cargo-deny on every push and PR
   2. Tagging a release version triggers automatic build and publication of a pre-built x86_64-linux binary to GitHub Releases
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Fix fmt/clippy violations, reqwest MUSL fix, create deny.toml and CI workflow (PKG-01)
+- [ ] 05-02-PLAN.md — Create release workflow for tag-triggered binary publishing (PKG-02)
 
 ### Phase 6: Documentation and Release
 **Goal**: A new user can install, configure, and use caldawarrior from the README alone, with known limitations clearly documented
@@ -121,5 +122,5 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | 2. Relation Verification | 2/2 | Complete | 2026-03-19 |
 | 3. Field and Sync Correctness | 3/3 | Complete | 2026-03-19 |
 | 4. Compatibility | 1/2 | In Progress | - |
-| 5. CI/CD and Packaging | 0/? | Not started | - |
+| 5. CI/CD and Packaging | 0/2 | Not started | - |
 | 6. Documentation and Release | 0/? | Not started | - |
