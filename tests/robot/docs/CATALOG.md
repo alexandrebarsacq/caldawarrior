@@ -29,7 +29,7 @@ future scenarios without requiring renumbering.
 | S-10–S-14 | LWW Conflict          |
 | S-20–S-22 | Orphan and Deletion   |
 | S-30–S-33 | Status Mapping        |
-| S-40–S-42 | Dependencies          |
+| S-40–S-45 | Dependencies          |
 | S-50–S-55 | CLI Behavior          |
 | S-60–S-63 | Field Mapping         |
 | S-70–S-79 | Bulk Operations       |
@@ -824,7 +824,7 @@ in the summary.
 
 ---
 
-## Dependencies (S-40 to S-42)
+## Dependencies (S-40 to S-45)
 
 ### S-40 · Dependencies — TW `depends` Syncs to RELATED-TO in CalDAV
 
@@ -916,29 +916,30 @@ are present in the IR (both TW tasks are being synced).
 
 ---
 
-### S-42 · Dependencies — Cyclic Dependency Warning Emitted and Tasks Skipped
+### S-42 · Dependencies — Cyclic Tasks Synced Without RELATED-TO
 
 | Field | Value |
 |-------|-------|
 | **ID** | S-42 |
 | **Category** | Dependencies |
-| **Robot Test Case Name** | `Cyclic Dependency Emits Warning And Skips Tasks` |
-| **skip-unimplemented** | Yes |
-| **Status** | ⚠️ Skip |
+| **Robot Test Case Name** | `Cyclic Tasks Synced Without Related-To` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
 
 **User Story**
 
-Alice accidentally creates a dependency cycle: task A depends on task B, and task B depends on
-task A. She runs `caldawarrior sync`. She expects caldawarrior to detect the cycle, emit a
-`[WARN]` message for each task involved, skip those tasks without erroring, and exit with code 0.
+Alice creates a 2-node cyclic dependency: task A depends on task B, and task B depends on task A.
+She runs `caldawarrior sync`. Both tasks sync to CalDAV with SUMMARY and STATUS, but neither has
+RELATED-TO properties. Stderr contains CyclicEntry warnings for both tasks. Exit code is 0.
 
 **Setup**
-- TW: 2 pending tasks; task A `depends` on task B; task B `depends` on task A (cycle)
+- TW: 2 pending tasks; task A `depends` on task B; task B `depends` on task A (cycle created via
+  `task import` to bypass TW's built-in cycle rejection)
 - CalDAV: empty calendar
 
 **Expected Stdout**
 ```
-Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+Synced: 2 created, 0 updated in CalDAV; 0 created, 0 updated in TW
 ```
 
 **Expected Stderr**
@@ -951,17 +952,155 @@ Synced: 0 created, 0 updated in CalDAV; 0 created, 0 updated in TW
 0
 
 **Expected CalDAV State**
-No VTODOs created (cyclic tasks are skipped via `PlannedOp::Skip { reason: SkipReason::Cyclic }`)
+2 VTODOs exist; both have SUMMARY and STATUS set; neither has `RELATED-TO` property
 
 **Expected TW State**
-Neither TW task has `caldavuid` set
+Both TW tasks have `caldavuid` set
 
 **Notes**
-**skip-unimplemented: Yes** — Behavior is implemented in `src/sync/deps.rs:138-145` but is not
-covered by any CLI-level test. Robot test tagged `skip-unimplemented` until a CLI blackbox test is
-added. Warning format: `[WARN] CyclicEntry: task '{description}' is part of a dependency cycle`
-(from GAP_ANALYSIS.md §1.4, sourced from `src/sync/deps.rs:140-144`). `*` in Expected Stderr
-denotes the task description matched as a glob.
+Cyclic entries are detected by `resolve_dependencies()` DFS in `src/sync/deps.rs`.
+`resolved_depends` is cleared for cyclic entries in `apply_entry()` (src/sync/writeback.rs),
+so `build_vtodo_from_tw()` produces VTODOs without RELATED-TO. Warning format:
+`[WARN] CyclicEntry: task '{description}' is part of a dependency cycle`. `*` in Expected Stderr
+denotes the task description matched as a glob. TW 3.x rejects cyclic dependencies at modify
+time, so the test uses `task import` to bypass validation.
+
+---
+
+### S-43 · Dependencies — Three-Node Cyclic Dependency Synced Without RELATED-TO
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-43 |
+| **Category** | Dependencies |
+| **Robot Test Case Name** | `Three-Node Cyclic Dependency Synced Without Related-To` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice creates three tasks in a cycle: A depends on B, B depends on C, C depends on A. She runs
+`caldawarrior sync`. All three tasks sync to CalDAV with their fields but without any RELATED-TO
+properties. Stderr has 3 CyclicEntry warnings.
+
+**Setup**
+- TW: 3 pending tasks; A depends B, B depends C, C depends A (cycle created via `task import`
+  for the cycle-closing edge)
+- CalDAV: empty calendar
+
+**Expected Stdout**
+```
+Synced: 3 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+```
+[WARN] CyclicEntry: task '*' is part of a dependency cycle
+[WARN] CyclicEntry: task '*' is part of a dependency cycle
+[WARN] CyclicEntry: task '*' is part of a dependency cycle
+```
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+3 VTODOs exist; all have SUMMARY set; none has `RELATED-TO` property
+
+**Expected TW State**
+All three TW tasks have `caldavuid` set
+
+**Notes**
+Tests the DFS cycle detection with a 3-node cycle (A->B->C->A). The cycle-closing edge (C
+depends A) is set via `task import` to bypass TW 3.x cycle rejection.
+
+---
+
+### S-44 · Dependencies — TW Blocks Field Reflects Inverse Dependency After Sync
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-44 |
+| **Category** | Dependencies |
+| **Robot Test Case Name** | `TW Blocks Field Reflects Inverse Dependency After Sync` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice sets task A depends on task B. After sync, only A's VTODO has RELATED-TO (B's does not).
+In TW, B's export shows A in its computed blocks relationship (verified by checking that A's
+depends field contains B's UUID).
+
+**Setup**
+- TW: 2 pending tasks; task A `depends` on task B
+- CalDAV: empty calendar
+
+**Expected Stdout**
+```
+Synced: 2 created, 0 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+2 VTODOs exist; only A's VTODO has `RELATED-TO;RELTYPE=DEPENDS-ON` pointing to B's UID;
+B's VTODO has no `RELATED-TO` property
+
+**Expected TW State**
+Task A has `depends` containing B's UUID; B's computed `blocks` relationship includes A
+
+**Notes**
+TW `blocks` is a computed inverse of `depends` — not a stored field. caldawarrior does NOT write
+a separate RELATED-TO for the blocks direction. TW 3.x does not include `blocks` in `task export`
+JSON, so the test verifies the inverse relationship by checking A's depends field contains B's
+UUID.
+
+---
+
+### S-45 · Dependencies — Removing TW Dependency Clears CalDAV RELATED-TO
+
+| Field | Value |
+|-------|-------|
+| **ID** | S-45 |
+| **Category** | Dependencies |
+| **Robot Test Case Name** | `Removing TW Dependency Clears CalDAV Related-To` |
+| **skip-unimplemented** | No |
+| **Status** | ✅ Pass |
+
+**User Story**
+
+Alice has task A depending on task B (synced). She removes the dependency by modifying TW task A
+to have no depends, then re-syncs. The VTODO for A no longer has a RELATED-TO property.
+
+**Setup**
+- TW: 2 pending tasks; task A `depends` on task B; both already synced to CalDAV
+- CalDAV: 2 VTODOs; A's VTODO has `RELATED-TO;RELTYPE=DEPENDS-ON`
+
+**Expected Stdout** (second sync)
+```
+Synced: 0 created, 1 updated in CalDAV; 0 created, 0 updated in TW
+```
+
+**Expected Stderr**
+(empty)
+
+**Exit Code**
+0
+
+**Expected CalDAV State**
+A's VTODO no longer has `RELATED-TO` property
+
+**Expected TW State**
+Task A no longer has `depends` field
+
+**Notes**
+Dependency removal works because `build_vtodo_from_tw()` rebuilds the VTODO from scratch using
+`resolved_depends` (which is now empty), and the CalDAV PUT replaces the existing VTODO entirely.
+No special code needed for dep removal.
 
 ---
 
@@ -2157,7 +2296,10 @@ mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
 | S-33 | Status Mapping | `Completed Task Within Cutoff Is Synced Beyond Is Not` | No | ✅ Pass |
 | S-40 | Dependencies | `TW Depends Syncs To CalDAV Related-To` | No | ✅ Pass |
 | S-41 | Dependencies | `CalDAV Related-To Syncs To TW Depends` | No | ✅ Pass |
-| S-42 | Dependencies | `Cyclic Dependency Emits Warning And Skips Tasks` | Yes | ⚠️ Skip |
+| S-42 | Dependencies | `Cyclic Tasks Synced Without Related-To` | No | ✅ Pass |
+| S-43 | Dependencies | `Three-Node Cyclic Dependency Synced Without Related-To` | No | ✅ Pass |
+| S-44 | Dependencies | `TW Blocks Field Reflects Inverse Dependency After Sync` | No | ✅ Pass |
+| S-45 | Dependencies | `Removing TW Dependency Clears CalDAV Related-To` | No | ✅ Pass |
 | S-50 | CLI Behavior | `Invalid Credentials Produce Auth Error And Exit Code 1` | Yes | ⚠️ Skip |
 | S-51 | CLI Behavior | `World Readable Config File Produces Permission Warning` | Yes | ⚠️ Skip |
 | S-52 | CLI Behavior | `TW Recurring Task Is Skipped With Warn Message` | Yes | ⚠️ Skip |
@@ -2186,4 +2328,4 @@ mapping (TW `done` → CalDAV `STATUS:COMPLETED`).
 | S-84 | Multi-Sync Journey | `Repeated CalDAV Edits Propagate To TW Each Sync` | No | ⚠️ No test |
 | S-85 | Multi-Sync Journey | `Full Task Lifecycle Create Edit From Both Sides Then Complete` | No | ⚠️ No test |
 
-**Total scenarios: 47** (42 active, 5 skip-unimplemented)
+**Total scenarios: 50** (46 active, 4 skip-unimplemented)
