@@ -250,6 +250,7 @@ systemctl --user enable --now caldawarrior.timer
 **Tiers:** *Tested* = verified with E2E test suite. *Expected* = should work based on standards compliance, not E2E tested. *Unknown* = not evaluated.
 
 *\*DEPENDS-ON note:* caldawarrior syncs task dependencies using `RELATED-TO;RELTYPE=DEPENDS-ON` ([RFC 9253](https://datatracker.ietf.org/doc/html/rfc9253)). This property is preserved through sync by Radicale and DAVx5, but no tested CalDAV client currently renders DEPENDS-ON relationships in its UI. Dependencies work fully between TaskWarrior instances syncing through a CalDAV server. See [Known Limitation #15](#15-depends-on-relations-invisible-to-caldav-clients).
+For detailed tasks.org and DAVx5 compatibility analysis, see [tasks.org / DAVx5 Compatibility](docs/compatibility/tasks-org.md).
 
 ## v1 Known Limitations
 
@@ -487,7 +488,6 @@ The following capabilities are planned for the v2 release:
 | **Multi-server support** | Configure and sync multiple CalDAV servers from a single config file / invocation |
 | **CalDAV CANCEL recovery** | Detect when a previously CANCELLED VTODO has been re-opened and re-import it into TaskWarrior |
 | **Field-level conflict merging** | Merge non-conflicting field changes from both sides rather than picking an all-or-nothing winner |
-| **Annotation / DESCRIPTION sync** | Map TaskWarrior annotations to CalDAV `DESCRIPTION` and vice versa |
 
 ## License
 
