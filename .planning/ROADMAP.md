@@ -66,7 +66,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Fix CANCELLED propagation bug, CalDAVLibrary infrastructure fixes, status transition and deletion E2E tests (FIELD-02, FIELD-03)
 - [x] 03-02-PLAN.md — Comprehensive field create/update/clear E2E tests and dedicated idempotency suite (FIELD-01, FIELD-04)
-- [ ] 03-03-PLAN.md — Gap closure: revert tw.update() from task import to task modify with tag/annotation diff (FIELD-01, FIELD-02, FIELD-03, FIELD-04)
+- [x] 03-03-PLAN.md — Gap closure: revert tw.update() from task import to task modify with tag/annotation diff (FIELD-01, FIELD-02, FIELD-03, FIELD-04)
 
 ### Phase 4: Compatibility
 **Goal**: Caldawarrior handles real-world data formats from multiple servers and clients without data loss
@@ -80,7 +80,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — DATE-only value preservation, DST ambiguity fix, writeback propagation, and unit tests (COMPAT-02, COMPAT-03)
+- [x] 04-01-PLAN.md — DATE-only value preservation, DST ambiguity fix, writeback propagation, and unit tests (COMPAT-02, COMPAT-03)
 - [ ] 04-02-PLAN.md — Radicale XML edge-case tests, put_vtodo_raw_ical keyword, and E2E compatibility suite (COMPAT-01, COMPAT-04)
 
 ### Phase 5: CI/CD and Packaging
@@ -119,7 +119,7 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 |-------|----------------|--------|-----------|
 | 1. Code Audit and Bug Fixes | 3/3 | Complete | 2026-03-18 |
 | 2. Relation Verification | 2/2 | Complete | 2026-03-19 |
-| 3. Field and Sync Correctness | 2/3 | In Progress | - |
-| 4. Compatibility | 0/2 | Not started | - |
+| 3. Field and Sync Correctness | 3/3 | Complete | 2026-03-19 |
+| 4. Compatibility | 1/2 | In Progress | - |
 | 5. CI/CD and Packaging | 0/? | Not started | - |
 | 6. Documentation and Release | 0/? | Not started | - |

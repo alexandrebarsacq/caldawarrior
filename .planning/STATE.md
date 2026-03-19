@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Phase 4 context gathered
-last_updated: "2026-03-19T10:40:42.839Z"
-last_activity: "2026-03-19 -- Completed 03-03-PLAN.md (Gap closure: tw.update() regression fix)"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-19T12:39:00.000Z"
+last_activity: "2026-03-19 -- Completed 04-01-PLAN.md (DATE-only preservation and DST fix)"
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_plans: 10
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Reliable bidirectional sync between TaskWarrior and CalDAV, including task dependency relationships that no other tool supports.
-**Current focus:** Phase 3 - Field and Sync Correctness
+**Current focus:** Phase 4 - Compatibility
 
 ## Current Position
 
-Phase: 3 of 6 (Field and Sync Correctness) -- COMPLETE
-Plan: 3 of 3 in current phase (03-03 complete)
+Phase: 4 of 6 (Compatibility)
+Plan: 1 of 2 in current phase (04-01 complete)
 Status: in-progress
-Last activity: 2026-03-19 -- Completed 03-03-PLAN.md (Gap closure: tw.update() regression fix)
+Last activity: 2026-03-19 -- Completed 04-01-PLAN.md (DATE-only preservation and DST fix)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [██████████] 100%
 | Phase 03 P01 | 9  | 3 tasks | 5 files |
 | Phase 03 P02 | 16 | 2 tasks | 7 files |
 | Phase 03 P03 | 5  | 2 tasks | 2 files |
+| Phase 04 P01 | 17 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,10 @@ Recent decisions affecting current work:
 - [Phase 03]: content_identical expanded to 10 fields (added PRIORITY and CATEGORIES) -- prevents LWW short-circuit on priority/tag-only changes
 - [Phase 03]: tw.update() reverted from task import back to task modify -- task import drops caldavuid UDA in Docker TW3, causing perpetual re-sync; tags diffed via +tag/-tag, annotations via annotate/denotate
 - [Phase 03]: CalDAV CATEGORIES mapped to TW tags in build_tw_task_from_caldav -- previously only TW-to-CalDAV direction worked
+- [Phase 04]: Default derive added to VTODO -- all field types support Default, enables cleaner test construction
+- [Phase 04]: DST fall-back resolves via .latest() to standard-time interpretation -- matches RFC 5545 expectations
+- [Phase 04]: DST spring-forward gap falls back to naive-as-UTC -- preserves datetime instead of returning None
+- [Phase 04]: is_date_only_value detects both explicit VALUE=DATE param and implicit 8-char YYYYMMDD format
 
 ### Pending Todos
 
@@ -96,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T10:40:42.832Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-compatibility/04-CONTEXT.md
+Last session: 2026-03-19T12:39:00.000Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-compatibility/04-01-SUMMARY.md
