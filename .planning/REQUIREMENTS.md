@@ -30,10 +30,10 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Compatibility
 
-- [ ] **COMPAT-01**: XML parser handles Radicale, Nextcloud, and Baikal response formats without data loss
+- [x] **COMPAT-01**: XML parser handles Radicale, Nextcloud, and Baikal response formats without data loss
 - [x] **COMPAT-02**: DATE-only DUE values (YYYYMMDD) parse and round-trip correctly
 - [x] **COMPAT-03**: TZID datetime handling works for common timezones including DST transitions
-- [ ] **COMPAT-04**: Non-standard properties (X-props) from other clients survive round-trip sync
+- [x] **COMPAT-04**: Non-standard properties (X-props) from other clients survive round-trip sync
 
 ### Packaging
 
@@ -97,10 +97,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIELD-02 | Phase 3 | Complete |
 | FIELD-03 | Phase 3 | Complete |
 | FIELD-04 | Phase 3 | Complete |
-| COMPAT-01 | Phase 4 | Pending |
+| COMPAT-01 | Phase 4 | Complete |
 | COMPAT-02 | Phase 4 | Complete |
 | COMPAT-03 | Phase 4 | Complete |
-| COMPAT-04 | Phase 4 | Pending |
+| COMPAT-04 | Phase 4 | Complete |
 | PKG-01 | Phase 5 | Pending |
 | PKG-02 | Phase 5 | Pending |
 | DOC-01 | Phase 6 | Pending |
