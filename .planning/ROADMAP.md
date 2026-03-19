@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Relation Verification** - Prove dependency relations work end-to-end with real servers and document client limitations
 - [ ] **Phase 3: Field and Sync Correctness** - Verify all mapped fields, status transitions, deletion, and idempotency with E2E tests
 - [ ] **Phase 4: Compatibility** - Verify multi-server XML parsing, DATE-only values, timezone handling, and property preservation
-- [ ] **Phase 5: CI/CD and Packaging** - Automated pipeline running all tests, security audit, and binary release publishing
+- [x] **Phase 5: CI/CD and Packaging** - Automated pipeline running all tests, security audit, and binary release publishing
 - [ ] **Phase 6: Documentation and Release** - README, config reference, changelog, compatibility matrix, and ship
 
 ## Phase Details
@@ -93,8 +93,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Fix fmt/clippy violations, reqwest MUSL fix, create deny.toml and CI workflow (PKG-01)
-- [ ] 05-02-PLAN.md — Create release workflow for tag-triggered binary publishing (PKG-02)
+- [x] 05-01-PLAN.md — Fix fmt/clippy violations, reqwest MUSL fix, create deny.toml and CI workflow (PKG-01)
+- [x] 05-02-PLAN.md — Create release workflow for tag-triggered binary publishing (PKG-02)
 
 ### Phase 6: Documentation and Release
 **Goal**: A new user can install, configure, and use caldawarrior from the README alone, with known limitations clearly documented

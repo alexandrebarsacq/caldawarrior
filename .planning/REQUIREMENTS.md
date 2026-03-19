@@ -38,7 +38,7 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 ### Packaging
 
 - [x] **PKG-01**: GitHub Actions CI pipeline runs unit tests, integration tests, RF E2E tests, and cargo-deny security audit
-- [ ] **PKG-02**: Pre-built binary releases published on GitHub Releases for x86_64-linux
+- [x] **PKG-02**: Pre-built binary releases published on GitHub Releases for x86_64-linux
 
 ### Documentation
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMPAT-03 | Phase 4 | Complete |
 | COMPAT-04 | Phase 4 | Complete |
 | PKG-01 | Phase 5 | Complete |
-| PKG-02 | Phase 5 | Pending |
+| PKG-02 | Phase 5 | Complete |
 | DOC-01 | Phase 6 | Pending |
 | DOC-02 | Phase 6 | Pending |
 | DOC-03 | Phase 6 | Pending |

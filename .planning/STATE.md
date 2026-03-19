@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-19T14:30:02Z"
-last_activity: "2026-03-19 -- Completed 05-01-PLAN.md (CI pipeline and codebase cleanup)"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-19T14:37:30.065Z"
+last_activity: 2026-03-19 -- Completed 05-02-PLAN.md (release workflow)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Reliable bidirectional sync between TaskWarrior and CalDAV, including task dependency relationships that no other tool supports.
-**Current focus:** Phase 5 - CI/CD and Packaging
+**Current focus:** Phase 5 complete, ready for Phase 6 - Documentation
 
 ## Current Position
 
-Phase: 5 of 6 (CI/CD and Packaging)
-Plan: 1 of 2 in current phase (05-01 complete)
+Phase: 5 of 6 (CI/CD and Packaging) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
 Status: in-progress
-Last activity: 2026-03-19 -- Completed 05-01-PLAN.md (CI pipeline and codebase cleanup)
+Last activity: 2026-03-19 -- Completed 05-02-PLAN.md (release workflow)
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [█████████░] 92%
 | Phase 04 P01 | 17 | 2 tasks | 11 files |
 | Phase 04 P02 | 8  | 2 tasks | 3 files |
 | Phase 05 P01 | 21 | 2 tasks | 25 files |
+| Phase 05 P02 | 2  | 1 task  | 1 file  |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Rust 2024 let-chains for collapsible_if fixes -- cleaner than alternatives
 - [Phase 05]: cargo-deny v0.19 format adapted -- advisories uses ignore list instead of deprecated fields
 - [Phase 05]: CDLA-Permissive-2.0 license allowed -- required by webpki-roots (rustls CA bundle)
+- [Phase 05]: Separate release.yml from ci.yml -- different triggers (tags vs push/PR) and different build targets
+- [Phase 05]: release-musl cache key separate from CI cache -- MUSL target produces different compilation artifacts
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T14:30:02Z
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-ci-cd-and-packaging/05-01-SUMMARY.md
+Last session: 2026-03-19T14:37:30.060Z
+Stopped at: Completed 05-02-PLAN.md
+Resume file: None
