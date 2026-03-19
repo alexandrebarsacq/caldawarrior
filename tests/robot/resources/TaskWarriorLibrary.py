@@ -150,27 +150,31 @@ class TaskWarriorLibrary:
 
         return tasks[0]
 
-    def modify_tw_task(self, uuid, **kwargs):
+    def modify_tw_task(self, uuid, *args, **kwargs):
         """Modify one or more fields on a TaskWarrior task.
 
-        Runs 'task <uuid> modify key1:value1 key2:value2 ...' for each keyword
-        argument provided.
+        Runs 'task <uuid> modify ...' with the given modifications.
+        Accepts both positional arguments (raw TW modify tokens like '+tag',
+        '-tag', 'due:', 'priority=H') and keyword arguments (e.g.
+        description='New title', due='2026-03-15').
 
         Args:
             uuid:    The UUID string of the task to modify.
+            *args:   Raw modification tokens passed directly to task modify
+                     (e.g. '+work', '-meeting').
             **kwargs: Field names and their new values (e.g. project='work').
 
         Returns:
             None
         """
-        if not kwargs:
+        if not args and not kwargs:
             return
 
-        modifications = [f"{key}:{value}" for key, value in kwargs.items()]
-        args = [uuid, "modify"] + modifications
+        modifications = list(args) + [f"{key}:{value}" for key, value in kwargs.items()]
+        cmd_args = [uuid, "modify"] + modifications
 
         result = subprocess.run(
-            ["task"] + args,
+            ["task"] + cmd_args,
             env=self._tw_env,
             capture_output=True,
             text=True,
@@ -178,7 +182,7 @@ class TaskWarriorLibrary:
         )
         if result.returncode != 0:
             raise AssertionError(
-                f"task {' '.join(args)} failed (exit {result.returncode}): "
+                f"task {' '.join(cmd_args)} failed (exit {result.returncode}): "
                 f"{result.stderr.strip()}"
             )
 

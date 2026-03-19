@@ -197,7 +197,11 @@ fn build_tw_task_from_caldav(
         caldavuid: entry.caldav_uid.clone(),
         priority: fields.priority,
         project: base.map_or_else(|| entry.project.clone(), |t| t.project.clone()),
-        tags: base.and_then(|t| t.tags.clone()),
+        tags: if vtodo.categories.is_empty() {
+            base.and_then(|t| t.tags.clone())
+        } else {
+            Some(vtodo.categories.clone())
+        },
         recur: None,
         urgency: base.and_then(|t| t.urgency),
         id: base.and_then(|t| t.id),
@@ -559,7 +563,7 @@ fn execute_op<R: TaskRunner>(
                     // CalDAV-only new: tw.create() — the ONLY path calling task import.
                     tw.create(&tw_task)?;
                 } else {
-                    // Existing TW task: tw.update() — NEVER calls task import.
+                    // Existing TW task: tw.update() — uses task import for upsert.
                     tw.update(&tw_task)?;
                 }
                 result.written_tw += 1;
@@ -833,7 +837,7 @@ mod tests {
         let mock_tw = MockTaskRunner::new();
         mock_tw.push_run_response(Ok(String::new())); // uda type
         mock_tw.push_run_response(Ok(String::new())); // uda label
-        mock_tw.push_run_response(Ok(String::new())); // tw.update() for caldavuid
+        mock_tw.push_import_response(Ok(String::new())); // tw.update() for caldavuid
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
@@ -947,7 +951,7 @@ mod tests {
         let mock_tw = MockTaskRunner::new();
         mock_tw.push_run_response(Ok(String::new())); // uda type
         mock_tw.push_run_response(Ok(String::new())); // uda label
-        mock_tw.push_run_response(Ok(String::new())); // tw.update()
+        mock_tw.push_import_response(Ok(String::new())); // tw.update()
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
@@ -1137,7 +1141,7 @@ mod tests {
         let mock_tw = MockTaskRunner::new();
         mock_tw.push_run_response(Ok(String::new())); // uda type
         mock_tw.push_run_response(Ok(String::new())); // uda label
-        mock_tw.push_run_response(Ok(String::new())); // tw.update() for caldavuid
+        mock_tw.push_import_response(Ok(String::new())); // tw.update() for caldavuid
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
@@ -1234,7 +1238,7 @@ mod tests {
         let mock_tw = MockTaskRunner::new();
         mock_tw.push_run_response(Ok(String::new())); // uda type
         mock_tw.push_run_response(Ok(String::new())); // uda label
-        mock_tw.push_run_response(Ok(String::new())); // tw.update()
+        mock_tw.push_import_response(Ok(String::new())); // tw.update()
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();

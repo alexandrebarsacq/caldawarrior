@@ -135,6 +135,32 @@ fn content_identical(entry: &IREntry, now: DateTime<Utc>) -> bool {
         return false;
     }
 
+    // 9. PRIORITY — TW priority letter H/M/L ↔ iCal integer 1/5/9.
+    let tw_priority_ical: Option<u8> = tw.priority.as_deref().and_then(|p| match p {
+        "H" => Some(1),
+        "M" => Some(5),
+        "L" => Some(9),
+        _ => None,
+    });
+    if vtodo.priority != tw_priority_ical {
+        return false;
+    }
+
+    // 10. CATEGORIES — VTODO categories ↔ TW tags (sorted for order-independent comparison).
+    let mut caldav_cats: Vec<&str> = vtodo.categories.iter().map(String::as_str).collect();
+    caldav_cats.sort_unstable();
+    let mut tw_tags: Vec<&str> = tw
+        .tags
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(String::as_str)
+        .collect();
+    tw_tags.sort_unstable();
+    if caldav_cats != tw_tags {
+        return false;
+    }
+
     true
 }
 

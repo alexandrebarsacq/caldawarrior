@@ -266,54 +266,16 @@ impl<R: TaskRunner> TwAdapter<R> {
         Ok(())
     }
 
-    /// Update an existing TW task using `task modify`.
-    /// Builds modify args from the task's fields.
-    /// NEVER calls `task import` — uses `task modify` exclusively.
+    /// Update an existing TW task using `task import` (upsert by UUID).
+    ///
+    /// Uses `task import` rather than `task modify` so that ALL fields are set
+    /// atomically — including `tags` and `annotations` which `task modify`
+    /// cannot handle without complex diff logic.
     pub fn update(&self, task: &TWTask) -> Result<(), CaldaWarriorError> {
-        let uuid_str = task.uuid.to_string();
-        let mut args: Vec<String> = vec![];
-
-        args.push(format!("description:{}", task.description));
-        args.push(format!("status:{}", task.status));
-
-        if let Some(due) = task.due {
-            args.push(format!("due:{}", due.format("%Y%m%dT%H%M%SZ")));
-        } else {
-            args.push("due:".to_string()); // Clear the field
-        }
-
-        if let Some(scheduled) = task.scheduled {
-            args.push(format!("scheduled:{}", scheduled.format("%Y%m%dT%H%M%SZ")));
-        } else {
-            args.push("scheduled:".to_string());
-        }
-
-        if let Some(priority) = &task.priority {
-            args.push(format!("priority:{}", priority));
-        } else {
-            args.push("priority:".to_string());
-        }
-
-        if let Some(project) = &task.project {
-            args.push(format!("project:{}", project));
-        } else {
-            args.push("project:".to_string());
-        }
-
-        if let Some(caldavuid) = &task.caldavuid {
-            args.push(format!("caldavuid:{}", caldavuid));
-        } else {
-            args.push("caldavuid:".to_string());
-        }
-
-        // depends as comma-separated UUIDs
-        if !task.depends.is_empty() {
-            let dep_str: Vec<String> = task.depends.iter().map(|u| u.to_string()).collect();
-            args.push(format!("depends:{}", dep_str.join(",")));
-        }
-
-        let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        self.runner.modify(&uuid_str, &args_refs)?;
+        let json = serde_json::to_vec(task).map_err(|e| {
+            CaldaWarriorError::Config(format!("Failed to serialize task for update: {}", e))
+        })?;
+        self.runner.import(&json)?;
         Ok(())
     }
 
@@ -417,17 +379,15 @@ mod tests {
     }
 
     #[test]
-    fn update_uses_modify_not_import() {
+    fn update_uses_import_for_full_field_support() {
         let mock = MockTaskRunner::new();
         mock.push_run_response(Ok(String::new())); // uda type
         mock.push_run_response(Ok(String::new())); // uda label
-        mock.push_run_response(Ok(String::new())); // modify
+        mock.push_import_response(Ok(String::new())); // import (update)
 
         let adapter = TwAdapter::new(mock).expect("new");
         let task = make_task(Uuid::new_v4());
         adapter.update(&task).expect("update");
-
-        // Verify no import was called — import_responses is still empty and no call was made
     }
 
     #[test]
