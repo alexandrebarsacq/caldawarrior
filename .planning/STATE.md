@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 3 context gathered
-last_updated: "2026-03-19T06:59:17.154Z"
-last_activity: 2026-03-19 -- Completed 02-02-PLAN.md (E2E dependency tests and tasks.org compatibility)
+status: in-progress
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-19T07:43:09Z"
+last_activity: 2026-03-19 -- Completed 03-01-PLAN.md (Status transitions and deletion propagation)
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 80
+  total_plans: 7
+  completed_plans: 6
+  percent: 85
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Reliable bidirectional sync between TaskWarrior and CalDAV, including task dependency relationships that no other tool supports.
-**Current focus:** Phase 2 - Relation Verification
+**Current focus:** Phase 3 - Field and Sync Correctness
 
 ## Current Position
 
-Phase: 2 of 6 (Relation Verification)
-Plan: 2 of 2 in current phase (02-02 complete)
-Status: phase-complete
-Last activity: 2026-03-19 -- Completed 02-02-PLAN.md (E2E dependency tests and tasks.org compatibility)
+Phase: 3 of 6 (Field and Sync Correctness)
+Plan: 1 of 2 in current phase (03-01 complete)
+Status: in-progress
+Last activity: 2026-03-19 -- Completed 03-01-PLAN.md (Status transitions and deletion propagation)
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 85%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 80%
 | Phase 01 P03 | 9  | 2 tasks | 5 files |
 | Phase 02 P01 | 3 | 1 tasks | 2 files |
 | Phase 02 P02 | 13 | 2 tasks | 5 files |
+| Phase 03 P01 | 9  | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 02]: TW3 blocks field computed via depends inversion -- export omits blocks, keyword checks dependent's depends list
 - [Phase 02]: Cyclic deps created via task import -- TW3 rejects cyclic modify at CLI, task import bypasses validation
 - [Phase 02]: tasks.org DEPENDS-ON invisible but preserved -- documented as limitation with MEDIUM confidence
+- [Phase 03]: Completed status special-casing checks LWW timestamps before short-circuiting -- enables reopen propagation
+- [Phase 03]: SkipReason::Cancelled retained for CalDAV-only branch -- still needed by orphan logic
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:59:17.148Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-field-and-sync-correctness/03-CONTEXT.md
+Last session: 2026-03-19T07:43:09Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-field-and-sync-correctness/03-01-SUMMARY.md
