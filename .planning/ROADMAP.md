@@ -122,10 +122,10 @@ Plans:
   2. README Field Mapping table includes an `annotations → DESCRIPTION` row
   3. README Roadmap section no longer lists "Annotation / DESCRIPTION sync" as a v2 feature
   4. README links to `docs/compatibility/tasks-org.md` from the Compatibility section
-**Plans**: 0 plans
+**Plans**: 1 plan
 
 Plans:
-(none yet — run `/gsd:plan-phase 7`)
+- [ ] 07-01-PLAN.md — Correct Limitation 12, add Field Mapping row, remove stale v2 Roadmap entry, add tasks-org.md link (DOC-01)
 
 ## Progress
 
@@ -141,4 +141,4 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | 4. Compatibility | 2/2 | Complete | 2026-03-19 |
 | 5. CI/CD and Packaging | 2/2 | Complete | 2026-03-19 |
 | 6. Documentation and Release | 2/2 | Complete | 2026-03-19 |
-| 7. README Accuracy Fixes | 0/0 | Pending | — |
+| 7. README Accuracy Fixes | 0/1 | Pending | — |
