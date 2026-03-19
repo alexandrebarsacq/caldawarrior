@@ -109,6 +109,12 @@ pub enum MockCall {
     Import(String), // JSON as string
 }
 
+impl Default for MockTaskRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockTaskRunner {
     pub fn new() -> Self {
         Self {
@@ -150,10 +156,7 @@ impl TaskRunner for MockTaskRunner {
 
     fn import(&self, json: &[u8]) -> Result<String, CaldaWarriorError> {
         let json_str = String::from_utf8_lossy(json).to_string();
-        self.calls
-            .lock()
-            .unwrap()
-            .push(MockCall::Import(json_str));
+        self.calls.lock().unwrap().push(MockCall::Import(json_str));
         let mut responses = self.import_responses.lock().unwrap();
         if responses.is_empty() {
             Ok(String::new())
@@ -199,6 +202,7 @@ impl<R: TaskRunner> TwAdapter<R> {
     /// Runs two export calls:
     ///   1. `task export status:pending or status:waiting or status:recurring`
     ///   2. `task export status:completed or status:deleted`
+    ///
     /// Merges results by UUID, keeping the entry with the higher `modified` timestamp.
     pub fn list_all(&self) -> Result<Vec<TWTask>, CaldaWarriorError> {
         let pending_json = self.runner.export(&[
@@ -209,11 +213,9 @@ impl<R: TaskRunner> TwAdapter<R> {
             "status:recurring",
         ])?;
 
-        let completed_json = self.runner.export(&[
-            "status:completed",
-            "or",
-            "status:deleted",
-        ])?;
+        let completed_json = self
+            .runner
+            .export(&["status:completed", "or", "status:deleted"])?;
 
         let mut all: Vec<TWTask> = vec![];
 
@@ -233,8 +235,7 @@ impl<R: TaskRunner> TwAdapter<R> {
 
         // Dedup: if same UUID appears twice, keep the one with higher modified timestamp.
         // Tasks without a modified timestamp are treated as epoch (oldest possible).
-        let mut by_uuid: std::collections::HashMap<Uuid, TWTask> =
-            std::collections::HashMap::new();
+        let mut by_uuid: std::collections::HashMap<Uuid, TWTask> = std::collections::HashMap::new();
         for task in all {
             let entry = by_uuid.entry(task.uuid);
             match entry {
@@ -259,9 +260,8 @@ impl<R: TaskRunner> TwAdapter<R> {
     /// The task must already have a pre-assigned uuid (UUID4).
     /// IMPORTANT: This is the ONLY method that calls `task import`.
     pub fn create(&self, task: &TWTask) -> Result<(), CaldaWarriorError> {
-        let json = serde_json::to_vec(task).map_err(|e| {
-            CaldaWarriorError::Config(format!("Failed to serialize task: {}", e))
-        })?;
+        let json = serde_json::to_vec(task)
+            .map_err(|e| CaldaWarriorError::Config(format!("Failed to serialize task: {}", e)))?;
         self.runner.import(&json)?;
         Ok(())
     }
@@ -274,7 +274,11 @@ impl<R: TaskRunner> TwAdapter<R> {
     /// `old_task` is used for tag and annotation diff computation. Pass `None`
     /// when only scalar fields changed (e.g., caldavuid-only writeback) — all
     /// new tags will be treated as additions and all new annotations as additions.
-    pub fn update(&self, task: &TWTask, old_task: Option<&TWTask>) -> Result<(), CaldaWarriorError> {
+    pub fn update(
+        &self,
+        task: &TWTask,
+        old_task: Option<&TWTask>,
+    ) -> Result<(), CaldaWarriorError> {
         let uuid_str = task.uuid.to_string();
         let mut args: Vec<String> = Vec::new();
 
@@ -317,7 +321,7 @@ impl<R: TaskRunner> TwAdapter<R> {
             .and_then(|t| t.tags.as_ref())
             .map(|v| v.as_slice())
             .unwrap_or(&[]);
-        let new_tags: &[String] = task.tags.as_ref().map(|v| v.as_slice()).unwrap_or(&[]);
+        let new_tags: &[String] = task.tags.as_deref().unwrap_or(&[]);
 
         for tag in new_tags {
             if !old_tags.contains(tag) {
@@ -368,7 +372,10 @@ impl<R: TaskRunner> TwAdapter<R> {
     pub fn delete(&self, uuid: &Uuid) -> Result<(), CaldaWarriorError> {
         let uuid_str = uuid.to_string();
         // rc.confirmation:no bypasses the interactive "Are you sure?" prompt
-        match self.runner.run(&["rc.confirmation:no", &uuid_str, "delete"]) {
+        match self
+            .runner
+            .run(&["rc.confirmation:no", &uuid_str, "delete"])
+        {
             Ok(_) => {}
             Err(CaldaWarriorError::Tw {
                 code: 1,
@@ -476,11 +483,18 @@ mod tests {
         // Verify that modify was called (Run), not import
         let calls = adapter.runner.get_calls();
         // calls[0] = uda type, calls[1] = uda label, calls[2] = modify
-        assert!(calls.len() >= 3, "expected at least 3 calls, got {}", calls.len());
+        assert!(
+            calls.len() >= 3,
+            "expected at least 3 calls, got {}",
+            calls.len()
+        );
         match &calls[2] {
             MockCall::Run(args) => {
-                assert!(args.contains(&"modify".to_string()),
-                    "expected 'modify' in args, got {:?}", args);
+                assert!(
+                    args.contains(&"modify".to_string()),
+                    "expected 'modify' in args, got {:?}",
+                    args
+                );
             }
             MockCall::Import(_) => panic!("update() should NOT call import"),
         }
@@ -541,10 +555,16 @@ mod tests {
         let calls = adapter.runner.get_calls();
         match &calls[2] {
             MockCall::Run(args) => {
-                assert!(args.contains(&"+work".to_string()),
-                    "expected +work in args: {:?}", args);
-                assert!(args.contains(&"+urgent".to_string()),
-                    "expected +urgent in args: {:?}", args);
+                assert!(
+                    args.contains(&"+work".to_string()),
+                    "expected +work in args: {:?}",
+                    args
+                );
+                assert!(
+                    args.contains(&"+urgent".to_string()),
+                    "expected +urgent in args: {:?}",
+                    args
+                );
             }
             _ => panic!("expected Run call for modify"),
         }
@@ -569,8 +589,11 @@ mod tests {
         let calls = adapter.runner.get_calls();
         match &calls[2] {
             MockCall::Run(args) => {
-                assert!(args.contains(&"-obsolete".to_string()),
-                    "expected -obsolete in args: {:?}", args);
+                assert!(
+                    args.contains(&"-obsolete".to_string()),
+                    "expected -obsolete in args: {:?}",
+                    args
+                );
             }
             _ => panic!("expected Run call for modify"),
         }
@@ -593,10 +616,16 @@ mod tests {
         let calls = adapter.runner.get_calls();
         match &calls[2] {
             MockCall::Run(args) => {
-                assert!(args.contains(&"+alpha".to_string()),
-                    "expected +alpha in args: {:?}", args);
-                assert!(args.contains(&"+beta".to_string()),
-                    "expected +beta in args: {:?}", args);
+                assert!(
+                    args.contains(&"+alpha".to_string()),
+                    "expected +alpha in args: {:?}",
+                    args
+                );
+                assert!(
+                    args.contains(&"+beta".to_string()),
+                    "expected +beta in args: {:?}",
+                    args
+                );
             }
             _ => panic!("expected Run call for modify"),
         }
@@ -618,14 +647,26 @@ mod tests {
         let calls = adapter.runner.get_calls();
         match &calls[2] {
             MockCall::Run(args) => {
-                assert!(args.contains(&"due:".to_string()),
-                    "expected 'due:' (clear) in args: {:?}", args);
-                assert!(args.contains(&"scheduled:".to_string()),
-                    "expected 'scheduled:' (clear) in args: {:?}", args);
-                assert!(args.contains(&"priority:".to_string()),
-                    "expected 'priority:' (clear) in args: {:?}", args);
-                assert!(args.contains(&"project:".to_string()),
-                    "expected 'project:' (clear) in args: {:?}", args);
+                assert!(
+                    args.contains(&"due:".to_string()),
+                    "expected 'due:' (clear) in args: {:?}",
+                    args
+                );
+                assert!(
+                    args.contains(&"scheduled:".to_string()),
+                    "expected 'scheduled:' (clear) in args: {:?}",
+                    args
+                );
+                assert!(
+                    args.contains(&"priority:".to_string()),
+                    "expected 'priority:' (clear) in args: {:?}",
+                    args
+                );
+                assert!(
+                    args.contains(&"project:".to_string()),
+                    "expected 'project:' (clear) in args: {:?}",
+                    args
+                );
             }
             _ => panic!("expected Run call for modify"),
         }
@@ -655,14 +696,22 @@ mod tests {
 
         let calls = adapter.runner.get_calls();
         // After UDA calls and modify, there should be an annotate call
-        let annotate_calls: Vec<_> = calls.iter().filter(|c| {
-            if let MockCall::Run(args) = c {
-                args.contains(&"annotate".to_string())
-            } else {
-                false
-            }
-        }).collect();
-        assert_eq!(annotate_calls.len(), 1, "expected 1 annotate call, got {:?}", annotate_calls);
+        let annotate_calls: Vec<_> = calls
+            .iter()
+            .filter(|c| {
+                if let MockCall::Run(args) = c {
+                    args.contains(&"annotate".to_string())
+                } else {
+                    false
+                }
+            })
+            .collect();
+        assert_eq!(
+            annotate_calls.len(),
+            1,
+            "expected 1 annotate call, got {:?}",
+            annotate_calls
+        );
     }
 
     #[test]
@@ -688,14 +737,22 @@ mod tests {
         adapter.update(&new_task, Some(&old_task)).expect("update");
 
         let calls = adapter.runner.get_calls();
-        let denotate_calls: Vec<_> = calls.iter().filter(|c| {
-            if let MockCall::Run(args) = c {
-                args.contains(&"denotate".to_string())
-            } else {
-                false
-            }
-        }).collect();
-        assert_eq!(denotate_calls.len(), 1, "expected 1 denotate call, got {:?}", denotate_calls);
+        let denotate_calls: Vec<_> = calls
+            .iter()
+            .filter(|c| {
+                if let MockCall::Run(args) = c {
+                    args.contains(&"denotate".to_string())
+                } else {
+                    false
+                }
+            })
+            .collect();
+        assert_eq!(
+            denotate_calls.len(),
+            1,
+            "expected 1 denotate call, got {:?}",
+            denotate_calls
+        );
     }
 
     #[test]

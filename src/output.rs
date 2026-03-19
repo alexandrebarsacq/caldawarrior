@@ -75,17 +75,30 @@ fn count_ops(ops: &[PlannedOp]) -> (usize, usize, usize, usize, usize, usize) {
         }
     }
 
-    (caldav_creates, caldav_updates, tw_creates, tw_updates, deletes, skips)
+    (
+        caldav_creates,
+        caldav_updates,
+        tw_creates,
+        tw_updates,
+        deletes,
+        skips,
+    )
 }
 
 /// Format a single planned operation as a human-readable dry-run line.
 pub(crate) fn format_planned_op(op: &PlannedOp) -> String {
     match op {
         PlannedOp::PushToCalDav(entry) => {
-            format!("[DRY-RUN] [CREATE] CalDAV <- TW: {}", get_description(entry))
+            format!(
+                "[DRY-RUN] [CREATE] CalDAV <- TW: {}",
+                get_description(entry)
+            )
         }
         PlannedOp::PullFromCalDav(entry) => {
-            format!("[DRY-RUN] [CREATE] TW <- CalDAV: {}", get_description(entry))
+            format!(
+                "[DRY-RUN] [CREATE] TW <- CalDAV: {}",
+                get_description(entry)
+            )
         }
         PlannedOp::DeleteFromCalDav(entry) => {
             format!("[DRY-RUN] [DELETE] CalDAV: {}", get_description(entry))
@@ -160,7 +173,7 @@ mod tests {
     use super::*;
     use crate::types::{
         FetchedVTODO, IREntry, PlannedOp, Side, SkipReason, SyncResult, TWTask, UpdateReason,
-        Warning, VTODO,
+        VTODO, Warning,
     };
     use chrono::Utc;
     use uuid::Uuid;
@@ -335,7 +348,11 @@ mod tests {
         };
         let s = format_planned_op(&op);
         assert!(s.contains("[SKIP]"), "missing [SKIP]: {}", s);
-        assert!(s.contains('?'), "missing placeholder for missing uuid: {}", s);
+        assert!(
+            s.contains('?'),
+            "missing placeholder for missing uuid: {}",
+            s
+        );
         assert!(s.contains("cancelled"), "missing reason: {}", s);
     }
 
@@ -568,7 +585,10 @@ mod tests {
         };
 
         let (cc, _cu, tc, _tu, _d, _s) = count_ops(&result.planned_ops);
-        assert_eq!(cc, result.written_caldav, "caldav creates match written_caldav");
+        assert_eq!(
+            cc, result.written_caldav,
+            "caldav creates match written_caldav"
+        );
         assert_eq!(tc, result.written_tw, "tw creates match written_tw");
     }
 
@@ -588,9 +608,21 @@ mod tests {
             None => "[WARN]".to_string(),
         };
         let line = format!("{} {}", prefix, warn.message);
-        assert!(line.starts_with("[WARN] ["), "expected uuid prefix: {}", line);
-        assert!(line.contains(&uuid.to_string()), "uuid missing from line: {}", line);
-        assert!(line.contains("something went wrong"), "message missing: {}", line);
+        assert!(
+            line.starts_with("[WARN] ["),
+            "expected uuid prefix: {}",
+            line
+        );
+        assert!(
+            line.contains(&uuid.to_string()),
+            "uuid missing from line: {}",
+            line
+        );
+        assert!(
+            line.contains("something went wrong"),
+            "message missing: {}",
+            line
+        );
     }
 
     #[test]

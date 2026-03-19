@@ -110,7 +110,8 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
         }
     }
 
-    let uid = uid.ok_or_else(|| CaldaWarriorError::IcalParse("UID property missing".to_string()))?;
+    let uid =
+        uid.ok_or_else(|| CaldaWarriorError::IcalParse("UID property missing".to_string()))?;
 
     Ok(VTODO {
         uid,
@@ -136,9 +137,7 @@ pub fn from_icalendar_string(s: &str) -> Result<VTODO, CaldaWarriorError> {
 
 /// Serialize a VTODO into a complete VCALENDAR string (RFC 5545).
 pub fn to_icalendar_string(vtodo: &VTODO) -> String {
-    let mut lines: Vec<String> = vec![];
-
-    lines.push("BEGIN:VCALENDAR".to_string());
+    let mut lines: Vec<String> = vec!["BEGIN:VCALENDAR".to_string()];
     lines.push("VERSION:2.0".to_string());
     lines.push("PRODID:-//caldawarrior//EN".to_string());
     lines.push("BEGIN:VTODO".to_string());
@@ -259,9 +258,12 @@ fn unfold_lines(s: &str) -> String {
     result
 }
 
+/// A parsed iCalendar property: (name, params, value).
+type ParsedProperty = (String, Vec<(String, String)>, String);
+
 /// Parse a single unfolded property line into (name, params, value).
 /// Returns None if the line has no colon or cannot be parsed.
-fn parse_property_line(line: &str) -> Option<(String, Vec<(String, String)>, String)> {
+fn parse_property_line(line: &str) -> Option<ParsedProperty> {
     // Split on first ':' that is not inside a quoted string
     let colon_pos = find_colon_outside_quotes(line)?;
     let left = &line[..colon_pos];
@@ -451,12 +453,13 @@ fn format_date_only(dt: DateTime<Utc>) -> String {
 /// (no time component). Checks for explicit VALUE=DATE parameter or
 /// implicit 8-char date format without 'T'.
 fn is_date_only_value(value: &str, params: &[(String, String)]) -> bool {
-    params.iter().any(|(k, v)| {
-        k.eq_ignore_ascii_case("VALUE") && v.eq_ignore_ascii_case("DATE")
-    }) || {
-        let trimmed = value.trim();
-        trimmed.len() == 8 && !trimmed.contains('T')
-    }
+    params
+        .iter()
+        .any(|(k, v)| k.eq_ignore_ascii_case("VALUE") && v.eq_ignore_ascii_case("DATE"))
+        || {
+            let trimmed = value.trim();
+            trimmed.len() == 8 && !trimmed.contains('T')
+        }
 }
 
 /// Parse a datetime property value, handling TZID param, UTC suffix 'Z',
@@ -472,36 +475,32 @@ fn parse_datetime_with_params(value: &str, params: &[(String, String)]) -> Optio
 
     if let Some(tzid_str) = tzid {
         // Parse as local time in the given timezone, then convert to UTC
-        let tz: Tz = tzid_str
-            .parse()
-            .ok()?;
+        let tz: Tz = tzid_str.parse().ok()?;
         // Strip trailing 'Z' if present (shouldn't be with TZID, but be safe)
-        let s = if value.ends_with('Z') {
-            &value[..value.len() - 1]
-        } else {
-            value
-        };
+        let s = value.strip_suffix('Z').unwrap_or(value);
         let naive = NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%S").ok()?;
         let mapped = tz.from_local_datetime(&naive);
-        let dt_utc = mapped.single().map(|dt| dt.to_utc())
+        let dt_utc = mapped
+            .single()
+            .map(|dt| dt.to_utc())
             .or_else(|| mapped.latest().map(|dt| dt.to_utc()))
-            .unwrap_or_else(|| naive.and_utc());  // gap: treat as UTC
+            .unwrap_or_else(|| naive.and_utc()); // gap: treat as UTC
         return Some(dt_utc);
     }
 
     // UTC suffix
-    if value.ends_with('Z') {
-        let s = &value[..value.len() - 1];
-        if let Ok(naive) = NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%S") {
-            return Some(naive.and_utc());
-        }
+    if let Some(s) = value.strip_suffix('Z')
+        && let Ok(naive) = NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%S")
+    {
+        return Some(naive.and_utc());
     }
 
     // Date-only: YYYYMMDD
-    if value.len() == 8 && !value.contains('T') {
-        if let Ok(nd) = NaiveDate::parse_from_str(value, "%Y%m%d") {
-            return Some(nd.and_hms_opt(0, 0, 0)?.and_utc());
-        }
+    if value.len() == 8
+        && !value.contains('T')
+        && let Ok(nd) = NaiveDate::parse_from_str(value, "%Y%m%d")
+    {
+        return Some(nd.and_hms_opt(0, 0, 0)?.and_utc());
     }
 
     // Floating (no Z, not date-only) — treat as UTC
@@ -707,7 +706,10 @@ mod tests {
 
         let vtodo = from_icalendar_string(ical).expect("parse");
         let dtstamp = vtodo.dtstamp.expect("dtstamp should be parsed");
-        assert_eq!(dtstamp.format("%Y%m%dT%H%M%SZ").to_string(), "20260215T120000Z");
+        assert_eq!(
+            dtstamp.format("%Y%m%dT%H%M%SZ").to_string(),
+            "20260215T120000Z"
+        );
         // LAST-MODIFIED absent; dtstamp is present
         assert!(vtodo.last_modified.is_none());
     }
@@ -755,7 +757,11 @@ mod tests {
             ..Default::default()
         };
         let s = to_icalendar_string(&vtodo);
-        assert!(s.contains("PRIORITY:1"), "serialized output should contain PRIORITY:1: {}", s);
+        assert!(
+            s.contains("PRIORITY:1"),
+            "serialized output should contain PRIORITY:1: {}",
+            s
+        );
         // Round-trip: parse back and verify priority preserved
         let parsed = from_icalendar_string(&s).expect("parse");
         assert_eq!(parsed.priority, Some(1));
@@ -769,7 +775,11 @@ mod tests {
             ..Default::default()
         };
         let s = to_icalendar_string(&vtodo);
-        assert!(!s.contains("PRIORITY"), "serialized output should not contain PRIORITY when None: {}", s);
+        assert!(
+            !s.contains("PRIORITY"),
+            "serialized output should not contain PRIORITY when None: {}",
+            s
+        );
     }
 
     // ── CATEGORIES comma-escaping tests (AUDIT-01) ───────────────────────
@@ -852,7 +862,10 @@ mod tests {
             CATEGORIES:\r\n\
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
-        assert!(vtodo.categories.is_empty(), "empty CATEGORIES should produce empty vec");
+        assert!(
+            vtodo.categories.is_empty(),
+            "empty CATEGORIES should produce empty vec"
+        );
     }
 
     // ── DATE-only detection tests (COMPAT-02) ────────────────────────────
@@ -860,8 +873,14 @@ mod tests {
     #[test]
     fn test_vtodo_default_derive() {
         let vtodo = VTODO::default();
-        assert!(!vtodo.due_is_date_only, "due_is_date_only should default to false");
-        assert!(!vtodo.dtstart_is_date_only, "dtstart_is_date_only should default to false");
+        assert!(
+            !vtodo.due_is_date_only,
+            "due_is_date_only should default to false"
+        );
+        assert!(
+            !vtodo.dtstart_is_date_only,
+            "dtstart_is_date_only should default to false"
+        );
         assert!(vtodo.uid.is_empty());
         assert!(vtodo.due.is_none());
         assert!(vtodo.dtstart.is_none());
@@ -874,7 +893,10 @@ mod tests {
             DUE;VALUE=DATE:20260315\r\n\
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
-        assert!(vtodo.due_is_date_only, "DUE;VALUE=DATE should set due_is_date_only");
+        assert!(
+            vtodo.due_is_date_only,
+            "DUE;VALUE=DATE should set due_is_date_only"
+        );
         let due = vtodo.due.expect("due should be present");
         assert_eq!(due, Utc.with_ymd_and_hms(2026, 3, 15, 0, 0, 0).unwrap());
     }
@@ -887,7 +909,10 @@ mod tests {
             DUE:20260315\r\n\
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
-        assert!(vtodo.due_is_date_only, "implicit 8-char DUE should set due_is_date_only");
+        assert!(
+            vtodo.due_is_date_only,
+            "implicit 8-char DUE should set due_is_date_only"
+        );
     }
 
     #[test]
@@ -897,7 +922,10 @@ mod tests {
             DUE:20260315T120000Z\r\n\
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
-        assert!(!vtodo.due_is_date_only, "DUE with time should NOT set due_is_date_only");
+        assert!(
+            !vtodo.due_is_date_only,
+            "DUE with time should NOT set due_is_date_only"
+        );
     }
 
     #[test]
@@ -907,7 +935,10 @@ mod tests {
             DTSTART;VALUE=DATE:20260401\r\n\
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
-        assert!(vtodo.dtstart_is_date_only, "DTSTART;VALUE=DATE should set dtstart_is_date_only");
+        assert!(
+            vtodo.dtstart_is_date_only,
+            "DTSTART;VALUE=DATE should set dtstart_is_date_only"
+        );
         let dtstart = vtodo.dtstart.expect("dtstart should be present");
         assert_eq!(dtstart, Utc.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap());
     }
@@ -923,8 +954,15 @@ mod tests {
             DUE;TZID=America/New_York:20261101T013000\r\n\
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
-        let due = vtodo.due.expect("due should be present for ambiguous DST time");
-        assert_eq!(due.hour(), 6, "01:30 EST (latest/standard) = 06:30 UTC, got hour={}", due.hour());
+        let due = vtodo
+            .due
+            .expect("due should be present for ambiguous DST time");
+        assert_eq!(
+            due.hour(),
+            6,
+            "01:30 EST (latest/standard) = 06:30 UTC, got hour={}",
+            due.hour()
+        );
         assert_eq!(due.minute(), 30);
     }
 
@@ -949,7 +987,12 @@ mod tests {
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
         let dtstart = vtodo.dtstart.expect("dtstart should be present");
-        assert_eq!(dtstart.hour(), 12, "14:00 CEST = 12:00 UTC, got hour={}", dtstart.hour());
+        assert_eq!(
+            dtstart.hour(),
+            12,
+            "14:00 CEST = 12:00 UTC, got hour={}",
+            dtstart.hour()
+        );
     }
 
     #[test]
@@ -961,7 +1004,12 @@ mod tests {
             END:VTODO\r\nEND:VCALENDAR\r\n";
         let vtodo = from_icalendar_string(ical).expect("parse");
         let dtstart = vtodo.dtstart.expect("dtstart should be present");
-        assert_eq!(dtstart.hour(), 13, "14:00 CET = 13:00 UTC, got hour={}", dtstart.hour());
+        assert_eq!(
+            dtstart.hour(),
+            13,
+            "14:00 CET = 13:00 UTC, got hour={}",
+            dtstart.hour()
+        );
     }
 
     // ── DATE-only serialization tests (COMPAT-02) ────────────────────────
@@ -975,8 +1023,15 @@ mod tests {
             ..Default::default()
         };
         let s = to_icalendar_string(&vtodo);
-        assert!(s.contains("DUE;VALUE=DATE:20260315"), "should emit DUE;VALUE=DATE, got: {}", s);
-        assert!(!s.contains("DUE:20260315T"), "should NOT emit DUE with time component");
+        assert!(
+            s.contains("DUE;VALUE=DATE:20260315"),
+            "should emit DUE;VALUE=DATE, got: {}",
+            s
+        );
+        assert!(
+            !s.contains("DUE:20260315T"),
+            "should NOT emit DUE with time component"
+        );
     }
 
     #[test]
@@ -988,7 +1043,11 @@ mod tests {
             ..Default::default()
         };
         let s = to_icalendar_string(&vtodo);
-        assert!(s.contains("DUE:20260315T120000Z"), "should emit DUE with datetime, got: {}", s);
+        assert!(
+            s.contains("DUE:20260315T120000Z"),
+            "should emit DUE with datetime, got: {}",
+            s
+        );
         assert!(!s.contains("VALUE=DATE"), "should NOT contain VALUE=DATE");
     }
 
@@ -1001,7 +1060,11 @@ mod tests {
             ..Default::default()
         };
         let s = to_icalendar_string(&vtodo);
-        assert!(s.contains("DTSTART;VALUE=DATE:20260401"), "should emit DTSTART;VALUE=DATE, got: {}", s);
+        assert!(
+            s.contains("DTSTART;VALUE=DATE:20260401"),
+            "should emit DTSTART;VALUE=DATE, got: {}",
+            s
+        );
     }
 
     #[test]
@@ -1016,11 +1079,17 @@ mod tests {
         assert!(vtodo1.due_is_date_only, "first parse: due_is_date_only");
 
         let serialized = to_icalendar_string(&vtodo1);
-        assert!(serialized.contains("DUE;VALUE=DATE:20260315"),
-            "serialized should contain DUE;VALUE=DATE:20260315, got: {}", serialized);
+        assert!(
+            serialized.contains("DUE;VALUE=DATE:20260315"),
+            "serialized should contain DUE;VALUE=DATE:20260315, got: {}",
+            serialized
+        );
 
         let vtodo2 = from_icalendar_string(&serialized).expect("second parse");
-        assert!(vtodo2.due_is_date_only, "round-trip: due_is_date_only preserved");
+        assert!(
+            vtodo2.due_is_date_only,
+            "round-trip: due_is_date_only preserved"
+        );
         assert_eq!(vtodo2.due, vtodo1.due, "round-trip: due datetime preserved");
     }
 
@@ -1036,10 +1105,15 @@ mod tests {
         assert!(!vtodo.due_is_date_only, "datetime should NOT be date-only");
 
         let serialized = to_icalendar_string(&vtodo);
-        assert!(serialized.contains("DUE:20260315T120000Z"),
-            "should preserve DUE datetime, got: {}", serialized);
-        assert!(!serialized.contains("VALUE=DATE"),
-            "should NOT contain VALUE=DATE in datetime round-trip");
+        assert!(
+            serialized.contains("DUE:20260315T120000Z"),
+            "should preserve DUE datetime, got: {}",
+            serialized
+        );
+        assert!(
+            !serialized.contains("VALUE=DATE"),
+            "should NOT contain VALUE=DATE in datetime round-trip"
+        );
     }
 
     #[test]
@@ -1052,7 +1126,10 @@ mod tests {
         };
         assert!(!vtodo.due_is_date_only, "Default should be false");
         let s = to_icalendar_string(&vtodo);
-        assert!(s.contains("DUE:20260315T140000Z"),
-            "TW-originated task should use DATE-TIME format, got: {}", s);
+        assert!(
+            s.contains("DUE:20260315T140000Z"),
+            "TW-originated task should use DATE-TIME format, got: {}",
+            s
+        );
     }
 }

@@ -43,8 +43,8 @@ fn run() -> Result<()> {
     match cli.command {
         Commands::Sync { dry_run, fail_fast } => {
             // Load configuration
-            let config = config::load(cli.config.as_deref())
-                .context("Failed to load configuration")?;
+            let config =
+                config::load(cli.config.as_deref()).context("Failed to load configuration")?;
 
             // Create TW adapter
             let tw = TwAdapter::new(RealTaskRunner)
@@ -66,11 +66,9 @@ fn run() -> Result<()> {
             // Fetch VTODOs from each configured calendar
             let mut vtodos_by_calendar = HashMap::new();
             for calendar in &config.calendars {
-                let vtodos = caldav
-                    .list_vtodos(&calendar.url)
-                    .with_context(|| {
-                        format!("Failed to list VTODOs from calendar '{}'", calendar.url)
-                    })?;
+                let vtodos = caldav.list_vtodos(&calendar.url).with_context(|| {
+                    format!("Failed to list VTODOs from calendar '{}'", calendar.url)
+                })?;
                 vtodos_by_calendar.insert(calendar.url.clone(), vtodos);
             }
 
@@ -102,9 +100,9 @@ fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
     #[allow(unused_imports)]
     use caldawarrior::caldav_adapter::CalDavClient;
+    use clap::CommandFactory;
 
     #[test]
     fn sync_dry_run_true() {
@@ -124,9 +122,8 @@ mod tests {
 
     #[test]
     fn sync_with_config_path() {
-        let cli =
-            Cli::try_parse_from(["caldawarrior", "--config", "/tmp/cfg.toml", "sync"])
-                .expect("parse");
+        let cli = Cli::try_parse_from(["caldawarrior", "--config", "/tmp/cfg.toml", "sync"])
+            .expect("parse");
         assert_eq!(
             cli.config.as_deref(),
             Some(std::path::Path::new("/tmp/cfg.toml")),
@@ -146,7 +143,9 @@ mod tests {
     fn sync_fail_fast_defaults_false() {
         let cli = Cli::try_parse_from(["caldawarrior", "sync"]).expect("parse");
         match cli.command {
-            Commands::Sync { fail_fast, .. } => assert!(!fail_fast, "expected fail_fast to default to false"),
+            Commands::Sync { fail_fast, .. } => {
+                assert!(!fail_fast, "expected fail_fast to default to false")
+            }
         }
     }
 

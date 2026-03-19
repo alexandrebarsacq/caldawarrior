@@ -66,7 +66,10 @@ fn parse_ical_dt(s: &str) -> Option<DateTime<Utc>> {
 /// Panics if `entry.tw_task` or `entry.fetched_vtodo` is `None` (caller ensures
 /// this is called only for paired entries).
 fn content_identical(entry: &IREntry, now: DateTime<Utc>) -> bool {
-    let tw = entry.tw_task.as_ref().expect("content_identical: tw_task is None");
+    let tw = entry
+        .tw_task
+        .as_ref()
+        .expect("content_identical: tw_task is None");
     let vtodo = &entry
         .fetched_vtodo
         .as_ref()
@@ -201,7 +204,10 @@ pub fn resolve_lww(entry: IREntry, now: DateTime<Utc>) -> PlannedOp {
     }
 
     // Layer 1: LWW timestamp comparison.
-    let tw = entry.tw_task.as_ref().expect("resolve_lww: tw_task is None");
+    let tw = entry
+        .tw_task
+        .as_ref()
+        .expect("resolve_lww: tw_task is None");
     let vtodo = &entry
         .fetched_vtodo
         .as_ref()
@@ -213,14 +219,14 @@ pub fn resolve_lww(entry: IREntry, now: DateTime<Utc>) -> PlannedOp {
 
     // CalDAV wins when its LAST-MODIFIED (or DTSTAMP fallback) is more recent than TW.
     let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
-    if let Some(caldav_ts) = caldav_ts {
-        if caldav_ts > tw_modified {
-            return PlannedOp::ResolveConflict {
-                entry,
-                winner: Side::CalDav,
-                reason: UpdateReason::LwwCalDavWins,
-            };
-        }
+    if let Some(caldav_ts) = caldav_ts
+        && caldav_ts > tw_modified
+    {
+        return PlannedOp::ResolveConflict {
+            entry,
+            winner: Side::CalDav,
+            reason: UpdateReason::LwwCalDavWins,
+        };
     }
 
     // Tiebreaker: TW is authoritative.
@@ -286,10 +292,7 @@ mod tests {
         }
     }
 
-    fn make_entry(
-        tw_task: TWTask,
-        vtodo: VTODO,
-    ) -> IREntry {
+    fn make_entry(tw_task: TWTask, vtodo: VTODO) -> IREntry {
         IREntry {
             tw_uuid: Some(tw_task.uuid),
             caldav_uid: Some(vtodo.uid.clone()),
@@ -374,7 +377,10 @@ mod tests {
         let now = t(2026, 2, 2, 0, 0, 0);
 
         match resolve_lww(entry, now) {
-            PlannedOp::Skip { reason: SkipReason::Identical, .. } => {}
+            PlannedOp::Skip {
+                reason: SkipReason::Identical,
+                ..
+            } => {}
             other => panic!("expected Skip(Identical), got {:?}", other),
         }
     }
@@ -397,7 +403,10 @@ mod tests {
 
         match resolve_lww(entry, now) {
             PlannedOp::ResolveConflict { winner, reason, .. } => {
-                assert!(matches!(winner, Side::Tw), "TW should win on equal timestamps");
+                assert!(
+                    matches!(winner, Side::Tw),
+                    "TW should win on equal timestamps"
+                );
                 assert!(matches!(reason, UpdateReason::LwwTwWins));
             }
             other => panic!("expected TW wins on equal timestamps, got {:?}", other),
@@ -440,13 +449,16 @@ mod tests {
             &uuid.to_string(),
             "Updated CalDAV content", // same as TW now
             "NEEDS-ACTION",
-            Some(caldav_lm),     // CalDAV unchanged
+            Some(caldav_lm), // CalDAV unchanged
         );
         let entry_after = make_entry(task_after, vtodo_after);
 
         // Layer 2 (content-identical) should fire and produce Skip(Identical).
         match resolve_lww(entry_after, now) {
-            PlannedOp::Skip { reason: SkipReason::Identical, .. } => {}
+            PlannedOp::Skip {
+                reason: SkipReason::Identical,
+                ..
+            } => {}
             other => panic!(
                 "sync 2 (regression): expected Skip(Identical) after CalDAV-wins resync, got {:?}",
                 other
@@ -472,8 +484,14 @@ mod tests {
         let now = t(2026, 2, 2, 0, 0, 0);
 
         match resolve_lww(entry, now) {
-            PlannedOp::Skip { reason: SkipReason::Identical, .. } => {}
-            other => panic!("expected Skip(Identical) for status normalization, got {:?}", other),
+            PlannedOp::Skip {
+                reason: SkipReason::Identical,
+                ..
+            } => {}
+            other => panic!(
+                "expected Skip(Identical) for status normalization, got {:?}",
+                other
+            ),
         }
     }
 
@@ -498,7 +516,10 @@ mod tests {
         // Both timestamps absent → tiebreaker → TW wins.
         match resolve_lww(entry, now) {
             PlannedOp::ResolveConflict { winner, reason, .. } => {
-                assert!(matches!(winner, Side::Tw), "TW should win via tiebreaker when no CalDAV timestamps");
+                assert!(
+                    matches!(winner, Side::Tw),
+                    "TW should win via tiebreaker when no CalDAV timestamps"
+                );
                 assert!(matches!(reason, UpdateReason::LwwTwWins));
             }
             other => panic!("expected TW wins (no CalDAV timestamps), got {:?}", other),
@@ -525,7 +546,10 @@ mod tests {
 
         match resolve_lww(entry, now) {
             PlannedOp::ResolveConflict { winner, reason, .. } => {
-                assert!(matches!(winner, Side::CalDav), "CalDAV should win via DTSTAMP fallback");
+                assert!(
+                    matches!(winner, Side::CalDav),
+                    "CalDAV should win via DTSTAMP fallback"
+                );
                 assert!(matches!(reason, UpdateReason::LwwCalDavWins));
             }
             other => panic!("expected CalDAV wins via DTSTAMP fallback, got {:?}", other),
@@ -580,10 +604,7 @@ mod tests {
                 );
                 assert!(matches!(reason, UpdateReason::LwwTwWins));
             }
-            other => panic!(
-                "expected TW wins via entry fallback, got {:?}",
-                other
-            ),
+            other => panic!("expected TW wins via entry fallback, got {:?}", other),
         }
     }
 
@@ -607,7 +628,10 @@ mod tests {
         let now = t(2026, 2, 2, 0, 0, 0);
 
         match resolve_lww(entry, now) {
-            PlannedOp::Skip { reason: SkipReason::Identical, .. } => {}
+            PlannedOp::Skip {
+                reason: SkipReason::Identical,
+                ..
+            } => {}
             other => panic!(
                 "expected Skip(Identical) — Layer 2 must fire before Layer 1, got {:?}",
                 other

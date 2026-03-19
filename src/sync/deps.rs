@@ -16,7 +16,7 @@ use crate::types::{IREntry, Warning};
 ///    warning for each such node.
 ///
 /// Returns the list of non-fatal warnings accumulated during resolution.
-pub fn resolve_dependencies(entries: &mut Vec<IREntry>) -> Vec<Warning> {
+pub fn resolve_dependencies(entries: &mut [IREntry]) -> Vec<Warning> {
     // --- Step 1: build tw_uuid -> index map for O(1) lookups ---
     // Only include entries that have a tw_uuid (CalDAV-only terminal entries may have None).
     let index: HashMap<Uuid, usize> = entries
@@ -103,10 +103,7 @@ pub fn resolve_dependencies(entries: &mut Vec<IREntry>) -> Vec<Warning> {
                     1 => {
                         // Back-edge: found a cycle. Mark every node on the stack
                         // from `next`'s position through the current node.
-                        let cycle_start = stack
-                            .iter()
-                            .position(|(n, _)| *n == next)
-                            .unwrap_or(0);
+                        let cycle_start = stack.iter().position(|(n, _)| *n == next).unwrap_or(0);
                         for &(cyclic_node, _) in &stack[cycle_start..] {
                             cyclic_nodes[cyclic_node] = true;
                         }
@@ -137,10 +134,7 @@ pub fn resolve_dependencies(entries: &mut Vec<IREntry>) -> Vec<Warning> {
                 .unwrap_or("<no description>");
             warnings.push(Warning {
                 tw_uuid: entries[i].tw_uuid,
-                message: format!(
-                    "CyclicEntry: task '{}' is part of a dependency cycle",
-                    desc
-                ),
+                message: format!("CyclicEntry: task '{}' is part of a dependency cycle", desc),
             });
         }
     }

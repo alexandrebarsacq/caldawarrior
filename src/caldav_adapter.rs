@@ -38,6 +38,7 @@ pub trait CalDavClient: Send + Sync {
     /// PUT a VTODO to the CalDAV server.
     /// - If `etag` is Some: add `If-Match: "<etag>"` header (conditional update)
     /// - If `etag` is None: add `If-None-Match: *` header (create-only)
+    ///
     /// Returns the new ETag from the response (if present).
     fn put_vtodo(
         &self,
@@ -115,27 +116,28 @@ impl RealCalDavClient {
                     .headers()
                     .get("etag")
                     .and_then(|v| v.to_str().ok())
-                    .map(|s| normalize_etag(s));
+                    .map(normalize_etag);
                 let body = resp.text().map_err(|e| CaldaWarriorError::CalDav {
                     status: 0,
                     body: format!("Failed to read response body: {}", e),
                 })?;
-                let vtodo = crate::ical::from_icalendar_string(&body)
-                    .map_err(|e| CaldaWarriorError::IcalParse(format!(
+                let vtodo = crate::ical::from_icalendar_string(&body).map_err(|e| {
+                    CaldaWarriorError::IcalParse(format!(
                         "Could not parse VTODO from GET response for {}: {}",
                         href, e
-                    )))?;
+                    ))
+                })?;
                 Ok(FetchedVTODO {
                     href: href.to_string(),
                     etag,
                     vtodo,
                 })
             }
-            401 => Err(CaldaWarriorError::Auth {
-                server_url: url,
-            }),
+            401 => Err(CaldaWarriorError::Auth { server_url: url }),
             status => {
-                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
+                let body = resp
+                    .text()
+                    .unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -159,7 +161,10 @@ impl CalDavClient for RealCalDavClient {
 
         let resp = self
             .client
-            .request(reqwest::Method::from_bytes(b"REPORT").unwrap(), calendar_url)
+            .request(
+                reqwest::Method::from_bytes(b"REPORT").unwrap(),
+                calendar_url,
+            )
             .basic_auth(&self.username, Some(&self.password))
             .header("Content-Type", "application/xml; charset=utf-8")
             .header("Depth", "1")
@@ -179,7 +184,9 @@ impl CalDavClient for RealCalDavClient {
                 server_url: calendar_url.to_string(),
             }),
             status => {
-                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
+                let body = resp
+                    .text()
+                    .unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -213,7 +220,7 @@ impl CalDavClient for RealCalDavClient {
                     .headers()
                     .get("etag")
                     .and_then(|v| v.to_str().ok())
-                    .map(|s| normalize_etag(s));
+                    .map(normalize_etag);
                 Ok(new_etag)
             }
             401 => Err(CaldaWarriorError::Auth { server_url: url }),
@@ -224,7 +231,9 @@ impl CalDavClient for RealCalDavClient {
                 })
             }
             status => {
-                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
+                let body = resp
+                    .text()
+                    .unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -253,7 +262,9 @@ impl CalDavClient for RealCalDavClient {
                 })
             }
             status => {
-                let body = resp.text().unwrap_or_else(|e| format!("<body unreadable: {}>", e));
+                let body = resp
+                    .text()
+                    .unwrap_or_else(|e| format!("<body unreadable: {}>", e));
                 Err(CaldaWarriorError::CalDav { status, body })
             }
         }
@@ -276,6 +287,12 @@ pub enum CalDavCall {
     List(String),
     Put { href: String, etag: Option<String> },
     Delete { href: String, etag: Option<String> },
+}
+
+impl Default for MockCalDavClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockCalDavClient {
@@ -520,7 +537,10 @@ mod tests {
     fn mock_list_returns_queued_response() {
         let mock = MockCalDavClient::new();
         let expected = vec![make_fetched("uid-1", "/cal/uid-1.ics")];
-        mock.list_responses.lock().unwrap().push(Ok(expected.clone()));
+        mock.list_responses
+            .lock()
+            .unwrap()
+            .push(Ok(expected.clone()));
 
         let result = mock
             .list_vtodos("https://dav.example.com/alice/default/")
@@ -549,7 +569,8 @@ mod tests {
     #[test]
     fn mock_delete_records_call() {
         let mock = MockCalDavClient::new();
-        mock.delete_vtodo("/cal/test.ics", Some("\"etag1\"")).unwrap();
+        mock.delete_vtodo("/cal/test.ics", Some("\"etag1\""))
+            .unwrap();
 
         let calls = mock.calls.lock().unwrap();
         assert_eq!(calls.len(), 1);
@@ -689,7 +710,11 @@ END:VCALENDAR</C:calendar-data>
 </multistatus>"#;
 
         let results = parse_multistatus_vtodos(xml);
-        assert_eq!(results.len(), 1, "should parse VTODO with bare ns (default xmlns)");
+        assert_eq!(
+            results.len(),
+            1,
+            "should parse VTODO with bare ns (default xmlns)"
+        );
         assert_eq!(results[0].href, "/cal/bare-uid.ics");
         assert_eq!(results[0].etag.as_deref(), Some("\"bare-etag\""));
         assert_eq!(results[0].vtodo.uid, "bare-uid");

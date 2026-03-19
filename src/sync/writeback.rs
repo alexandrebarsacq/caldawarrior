@@ -7,13 +7,13 @@ use crate::caldav_adapter::CalDavClient;
 use crate::error::CaldaWarriorError;
 use crate::ical;
 use crate::mapper::fields::{caldav_to_tw_fields, tw_to_caldav_fields};
-use crate::mapper::status::{tw_to_caldav_status, TwToCalDavStatus};
+use crate::mapper::status::{TwToCalDavStatus, tw_to_caldav_status};
 use crate::sync::lww::resolve_lww;
+use crate::tw_adapter::{TaskRunner, TwAdapter};
 use crate::types::{
-    FetchedVTODO, IcalProp, IREntry, PlannedOp, RelType, Side, SkipReason, SyncResult, TWTask,
+    FetchedVTODO, IREntry, IcalProp, PlannedOp, RelType, Side, SkipReason, SyncResult, TWTask,
     TwAnnotation, UpdateReason, VTODO,
 };
-use crate::tw_adapter::{TaskRunner, TwAdapter};
 
 const MAX_ETAG_RETRIES: usize = 3;
 
@@ -275,7 +275,7 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
             if tw_status == "completed" && caldav_status != "COMPLETED" {
                 let tw_modified = tw.modified.unwrap_or(tw.entry);
                 let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
-                let caldav_is_newer = caldav_ts.map_or(false, |ct| ct > tw_modified);
+                let caldav_is_newer = caldav_ts.is_some_and(|ct| ct > tw_modified);
                 if !caldav_is_newer {
                     return Some(PlannedOp::ResolveConflict {
                         entry: entry.clone(),
@@ -291,7 +291,7 @@ fn decide_op(entry: &IREntry, now: DateTime<Utc>) -> Option<PlannedOp> {
             if caldav_status == "COMPLETED" && tw_status != "completed" {
                 let tw_modified = tw.modified.unwrap_or(tw.entry);
                 let caldav_ts = vtodo.last_modified.or(vtodo.dtstamp);
-                let tw_is_newer = caldav_ts.map_or(true, |ct| tw_modified >= ct);
+                let tw_is_newer = caldav_ts.is_none_or(|ct| tw_modified >= ct);
                 if !tw_is_newer {
                     return Some(PlannedOp::ResolveConflict {
                         entry: entry.clone(),
@@ -383,7 +383,10 @@ fn try_put_caldav(
     }
 
     let href = entry_href(entry);
-    let etag = entry.fetched_vtodo.as_ref().and_then(|fv| fv.etag.as_deref());
+    let etag = entry
+        .fetched_vtodo
+        .as_ref()
+        .and_then(|fv| fv.etag.as_deref());
     let ical_content = ical::to_icalendar_string(&vtodo);
 
     match caldav.put_vtodo(&href, &ical_content, etag) {
@@ -435,7 +438,7 @@ fn try_put_caldav(
 /// are mapped back to TW UUIDs via an IR index built from
 /// `(entry.caldav_uid → entry.tw_uuid)` pairs.
 pub fn apply_writeback<R: TaskRunner>(
-    ir: &mut Vec<IREntry>,
+    ir: &mut [IREntry],
     tw: &TwAdapter<R>,
     caldav: &dyn CalDavClient,
     dry_run: bool,
@@ -497,7 +500,7 @@ fn apply_entry<R: TaskRunner>(
         let retry = execute_op(entry, op, caldav_index, tw, caldav, dry_run, now, result);
 
         match retry {
-            Ok(true) => return,       // Success.
+            Ok(true) => return, // Success.
             Ok(false) => {
                 // EtagConflict: entry.fetched_vtodo updated; retry decision.
                 if attempt + 1 >= MAX_ETAG_RETRIES {
@@ -528,6 +531,7 @@ fn apply_entry<R: TaskRunner>(
 /// - `Ok(true)` on success or skip (no retry needed)
 /// - `Ok(false)` on `EtagConflict` (caller should retry)
 /// - `Err(e)` on non-retriable errors
+#[allow(clippy::too_many_arguments)]
 fn execute_op<R: TaskRunner>(
     entry: &mut IREntry,
     op: PlannedOp,
@@ -550,13 +554,14 @@ fn execute_op<R: TaskRunner>(
             let caldav_uid = entry.caldav_uid.clone();
 
             let pushed = try_put_caldav(entry, vtodo, caldav, dry_run, result)?;
-            if pushed && needs_tw_caldavuid_update {
-                if let Some(ref mut tw_task_mut) = entry.tw_task {
-                    tw_task_mut.caldavuid = caldav_uid;
-                    if !dry_run {
-                        tw.update(tw_task_mut, None)?;
-                        result.written_tw += 1;
-                    }
+            if pushed
+                && needs_tw_caldavuid_update
+                && let Some(ref mut tw_task_mut) = entry.tw_task
+            {
+                tw_task_mut.caldavuid = caldav_uid;
+                if !dry_run {
+                    tw.update(tw_task_mut, None)?;
+                    result.written_tw += 1;
                 }
             }
             Ok(pushed)
@@ -597,11 +602,11 @@ fn execute_op<R: TaskRunner>(
 
         // ── Delete from TW ───────────────────────────────────────────────────
         PlannedOp::DeleteFromTw(ref e) => {
-            if let Some(uuid) = e.tw_uuid {
-                if !dry_run {
-                    tw.delete(&uuid)?;
-                    result.written_tw += 1;
-                }
+            if let Some(uuid) = e.tw_uuid
+                && !dry_run
+            {
+                tw.delete(&uuid)?;
+                result.written_tw += 1;
             }
             Ok(true)
         }
@@ -667,7 +672,12 @@ mod tests {
         Utc.with_ymd_and_hms(y, mo, d, h, mi, s).unwrap()
     }
 
-    fn make_tw_task(uuid: Uuid, status: &str, description: &str, modified: DateTime<Utc>) -> TWTask {
+    fn make_tw_task(
+        uuid: Uuid,
+        status: &str,
+        description: &str,
+        modified: DateTime<Utc>,
+    ) -> TWTask {
         TWTask {
             uuid,
             status: status.to_string(),
@@ -790,7 +800,10 @@ mod tests {
         let vtodo = build_vtodo_from_tw(&entry, &tw_snapshot, now);
 
         assert_eq!(vtodo.summary, Some("Buy milk".to_string()));
-        assert!(vtodo.description.is_none(), "no annotations → DESCRIPTION must be None");
+        assert!(
+            vtodo.description.is_none(),
+            "no annotations → DESCRIPTION must be None"
+        );
     }
 
     #[test]
@@ -866,7 +879,11 @@ mod tests {
     fn caldav_only_needs_action_creates_tw_task() {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
-        let mut ir = vec![make_caldav_only_entry(&caldav_uid, "NEEDS-ACTION", Some(uuid))];
+        let mut ir = vec![make_caldav_only_entry(
+            &caldav_uid,
+            "NEEDS-ACTION",
+            Some(uuid),
+        )];
 
         let mock_tw = MockTaskRunner::new();
         mock_tw.push_run_response(Ok(String::new())); // uda type
@@ -875,16 +892,12 @@ mod tests {
         let tw = TwAdapter::new(mock_tw).expect("TwAdapter");
 
         let caldav = MockCalDavClient::new();
-        let result = apply_writeback(
-            &mut ir,
-            &tw,
-            &caldav,
-            false,
-            false,
-            t(2026, 2, 2, 0, 0, 0),
-        );
+        let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
-        assert_eq!(result.written_tw, 1, "CalDAV-only NEEDS-ACTION must call tw.create()");
+        assert_eq!(
+            result.written_tw, 1,
+            "CalDAV-only NEEDS-ACTION must call tw.create()"
+        );
         assert_eq!(result.written_caldav, 0);
     }
 
@@ -911,8 +924,12 @@ mod tests {
         let caldav_lm = t(2026, 2, 1, 9, 0, 0);
 
         let mut entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", tw_modified,
-            "NEEDS-ACTION", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "pending",
+            tw_modified,
+            "NEEDS-ACTION",
+            caldav_lm,
         );
         // Make content differ so Layer 2 doesn't short-circuit to Identical.
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -937,8 +954,12 @@ mod tests {
         let caldav_lm = t(2026, 2, 1, 11, 0, 0);
 
         let mut entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", tw_modified,
-            "NEEDS-ACTION", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "pending",
+            tw_modified,
+            "NEEDS-ACTION",
+            caldav_lm,
         );
         // Content must differ to avoid Identical shortcut.
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -966,10 +987,7 @@ mod tests {
         let caldav_uid = Uuid::new_v4().to_string();
         let ts = t(2026, 2, 1, 10, 0, 0);
 
-        let entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", ts,
-            "NEEDS-ACTION", ts,
-        );
+        let entry = make_paired_entry(uuid, &caldav_uid, "pending", ts, "NEEDS-ACTION", ts);
         // Both sides have same description "Task" — Layer 2 fires.
         let mut ir = vec![entry];
 
@@ -990,8 +1008,12 @@ mod tests {
         let caldav_lm = t(2026, 2, 1, 9, 0, 0);
 
         let mut entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", tw_modified,
-            "NEEDS-ACTION", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "pending",
+            tw_modified,
+            "NEEDS-ACTION",
+            caldav_lm,
         );
         // Different content so TW wins (content not identical).
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -1016,17 +1038,23 @@ mod tests {
             },
         };
         for _ in 0..MAX_ETAG_RETRIES {
-            caldav.put_responses.lock().unwrap().push(Err(
-                CaldaWarriorError::EtagConflict {
+            caldav
+                .put_responses
+                .lock()
+                .unwrap()
+                .push(Err(CaldaWarriorError::EtagConflict {
                     refetched_vtodo: refetched.clone(),
-                },
-            ));
+                }));
         }
 
         let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         assert_eq!(result.written_caldav, 0);
-        assert_eq!(result.errors.len(), 1, "one SyncConflict error after retry exhaustion");
+        assert_eq!(
+            result.errors.len(),
+            1,
+            "one SyncConflict error after retry exhaustion"
+        );
         assert!(result.errors[0].contains("SyncConflict") || result.errors[0].contains("ETag"));
     }
 
@@ -1067,8 +1095,14 @@ mod tests {
         let caldav = MockCalDavClient::new();
         let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
-        assert_eq!(result.written_tw, 1, "orphaned task should be deleted from TW");
-        assert_eq!(result.written_caldav, 0, "orphaned task must NOT be pushed to CalDAV");
+        assert_eq!(
+            result.written_tw, 1,
+            "orphaned task should be deleted from TW"
+        );
+        assert_eq!(
+            result.written_caldav, 0,
+            "orphaned task must NOT be pushed to CalDAV"
+        );
         assert_eq!(result.errors.len(), 0);
         let calls = caldav.calls.lock().unwrap();
         assert!(calls.is_empty(), "no CalDAV calls for orphaned deletion");
@@ -1079,8 +1113,12 @@ mod tests {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
         let entry = make_paired_entry(
-            uuid, &caldav_uid, "deleted", t(2026, 2, 1, 10, 0, 0),
-            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
+            uuid,
+            &caldav_uid,
+            "deleted",
+            t(2026, 2, 1, 10, 0, 0),
+            "NEEDS-ACTION",
+            t(2026, 2, 1, 9, 0, 0),
         );
         let mut ir = vec![entry];
 
@@ -1098,8 +1136,12 @@ mod tests {
         let uuid = Uuid::new_v4();
         let caldav_uid = Uuid::new_v4().to_string();
         let mut entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", t(2026, 2, 1, 10, 0, 0),
-            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
+            uuid,
+            &caldav_uid,
+            "pending",
+            t(2026, 2, 1, 10, 0, 0),
+            "NEEDS-ACTION",
+            t(2026, 2, 1, 9, 0, 0),
         );
         entry.cyclic = true;
         entry.resolved_depends = vec!["some-uid".to_string()];
@@ -1115,17 +1157,24 @@ mod tests {
         let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         // Cyclic entry IS written to CalDAV (not skipped).
-        assert_eq!(result.written_caldav, 1, "cyclic entry must be written to CalDAV");
+        assert_eq!(
+            result.written_caldav, 1,
+            "cyclic entry must be written to CalDAV"
+        );
         assert_eq!(result.skipped, 0, "cyclic entry must NOT be skipped");
 
         // CalDAV mock received a Put call.
         let calls = caldav.calls.lock().unwrap();
-        assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
-            "expected a Put call for the cyclic entry");
+        assert!(
+            calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
+            "expected a Put call for the cyclic entry"
+        );
 
         // After writeback, resolved_depends should have been cleared (no RELATED-TO in VTODO).
-        assert!(ir[0].resolved_depends.is_empty(),
-            "resolved_depends must be cleared for cyclic entries");
+        assert!(
+            ir[0].resolved_depends.is_empty(),
+            "resolved_depends must be cleared for cyclic entries"
+        );
     }
 
     #[test]
@@ -1147,17 +1196,27 @@ mod tests {
         let result = apply_writeback(&mut ir, &tw, &caldav, false, false, t(2026, 2, 2, 0, 0, 0));
 
         // TW-only cyclic entry IS pushed to CalDAV.
-        assert_eq!(result.written_caldav, 1, "TW-only cyclic entry must be pushed to CalDAV");
-        assert_eq!(result.skipped, 0, "TW-only cyclic entry must NOT be skipped");
+        assert_eq!(
+            result.written_caldav, 1,
+            "TW-only cyclic entry must be pushed to CalDAV"
+        );
+        assert_eq!(
+            result.skipped, 0,
+            "TW-only cyclic entry must NOT be skipped"
+        );
 
         // CalDAV mock received a Put call.
         let calls = caldav.calls.lock().unwrap();
-        assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
-            "expected a Put call for the TW-only cyclic entry");
+        assert!(
+            calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
+            "expected a Put call for the TW-only cyclic entry"
+        );
 
         // resolved_depends should have been cleared.
-        assert!(ir[0].resolved_depends.is_empty(),
-            "resolved_depends must be cleared for TW-only cyclic entries");
+        assert!(
+            ir[0].resolved_depends.is_empty(),
+            "resolved_depends must be cleared for TW-only cyclic entries"
+        );
     }
 
     #[test]
@@ -1166,8 +1225,12 @@ mod tests {
         let caldav_uid = Uuid::new_v4().to_string();
         // TW modified more recently than CalDAV → TW wins LWW.
         let mut entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", t(2026, 2, 1, 11, 0, 0),
-            "NEEDS-ACTION", t(2026, 2, 1, 9, 0, 0),
+            uuid,
+            &caldav_uid,
+            "pending",
+            t(2026, 2, 1, 11, 0, 0),
+            "NEEDS-ACTION",
+            t(2026, 2, 1, 9, 0, 0),
         );
         entry.cyclic = false;
         entry.resolved_depends = vec!["dep-uid".to_string()];
@@ -1187,14 +1250,25 @@ mod tests {
 
         // CalDAV mock received a Put call.
         let calls = caldav.calls.lock().unwrap();
-        assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
-            "expected a Put call for the non-cyclic entry");
+        assert!(
+            calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })),
+            "expected a Put call for the non-cyclic entry"
+        );
 
         // The VTODO stored on the entry should contain RELATED-TO with dep-uid.
-        let vtodo = &ir[0].fetched_vtodo.as_ref().expect("should have fetched_vtodo after put").vtodo;
-        assert!(!vtodo.depends.is_empty(), "non-cyclic entry must preserve RELATED-TO");
-        assert_eq!(vtodo.depends[0].1, "dep-uid",
-            "non-cyclic entry must have dep-uid in RELATED-TO");
+        let vtodo = &ir[0]
+            .fetched_vtodo
+            .as_ref()
+            .expect("should have fetched_vtodo after put")
+            .vtodo;
+        assert!(
+            !vtodo.depends.is_empty(),
+            "non-cyclic entry must preserve RELATED-TO"
+        );
+        assert_eq!(
+            vtodo.depends[0].1, "dep-uid",
+            "non-cyclic entry must have dep-uid in RELATED-TO"
+        );
     }
 
     #[test]
@@ -1207,8 +1281,12 @@ mod tests {
         let caldav_lm = t(2026, 2, 1, 9, 0, 0);
 
         let mut ir = vec![make_paired_entry(
-            uuid, &caldav_uid, "completed", tw_modified,
-            "NEEDS-ACTION", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "completed",
+            tw_modified,
+            "NEEDS-ACTION",
+            caldav_lm,
         )];
 
         let tw = make_tw_adapter(MockTaskRunner::new());
@@ -1230,8 +1308,12 @@ mod tests {
         let caldav_lm = t(2026, 2, 1, 10, 0, 0);
 
         let mut ir = vec![make_paired_entry(
-            uuid, &caldav_uid, "pending", tw_modified,
-            "COMPLETED", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "pending",
+            tw_modified,
+            "COMPLETED",
+            caldav_lm,
         )];
 
         let mock_tw = MockTaskRunner::new();
@@ -1347,13 +1429,23 @@ mod tests {
         let tw_modified = t(2026, 2, 1, 10, 0, 0);
         let caldav_lm = t(2026, 2, 1, 12, 0, 0); // CalDAV is newer
         let entry = make_paired_entry(
-            uuid, &caldav_uid, "completed", tw_modified,
-            "NEEDS-ACTION", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "completed",
+            tw_modified,
+            "NEEDS-ACTION",
+            caldav_lm,
         );
         let op = decide_op(&entry, t(2026, 2, 2, 0, 0, 0)).unwrap();
         // CalDAV wins LWW -> should be CalDav winner (reopen).
         assert!(
-            matches!(op, PlannedOp::ResolveConflict { winner: Side::CalDav, .. }),
+            matches!(
+                op,
+                PlannedOp::ResolveConflict {
+                    winner: Side::CalDav,
+                    ..
+                }
+            ),
             "CalDAV reopen (newer NEEDS-ACTION) should win over TW completed, got {:?}",
             op
         );
@@ -1368,8 +1460,12 @@ mod tests {
         let tw_modified = t(2026, 2, 1, 12, 0, 0); // TW is newer
         let caldav_lm = t(2026, 2, 1, 10, 0, 0);
         let mut entry = make_paired_entry(
-            uuid, &caldav_uid, "pending", tw_modified,
-            "COMPLETED", caldav_lm,
+            uuid,
+            &caldav_uid,
+            "pending",
+            tw_modified,
+            "COMPLETED",
+            caldav_lm,
         );
         // Make content differ so LWW doesn't short-circuit to Identical.
         if let Some(ref mut fv) = entry.fetched_vtodo {
@@ -1379,7 +1475,13 @@ mod tests {
         let op = decide_op(&entry, t(2026, 2, 2, 0, 0, 0)).unwrap();
         // TW wins LWW -> should be TW winner (reopen).
         assert!(
-            matches!(op, PlannedOp::ResolveConflict { winner: Side::Tw, .. }),
+            matches!(
+                op,
+                PlannedOp::ResolveConflict {
+                    winner: Side::Tw,
+                    ..
+                }
+            ),
             "TW reopen (newer pending) should win over CalDAV COMPLETED, got {:?}",
             op
         );

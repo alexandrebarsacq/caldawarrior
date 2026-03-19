@@ -1,6 +1,6 @@
 //! Integration tests: first sync from TaskWarrior to CalDAV.
 
-use super::{should_skip, TestHarness};
+use super::{TestHarness, should_skip};
 
 /// After syncing two TW tasks, both appear as VTODOs in CalDAV.
 #[test]
@@ -15,7 +15,11 @@ fn first_sync_pushes_tw_tasks_to_caldav() {
     let result = h.run_sync(false);
 
     assert!(result.errors.is_empty(), "sync errors: {:?}", result.errors);
-    assert_eq!(h.count_caldav_vtodos(), 2, "expected 2 VTODOs in CalDAV after sync");
+    assert_eq!(
+        h.count_caldav_vtodos(),
+        2,
+        "expected 2 VTODOs in CalDAV after sync"
+    );
     assert_eq!(result.written_caldav, 2, "expected 2 CalDAV writes");
 }
 
@@ -52,8 +56,15 @@ fn first_sync_dry_run_does_not_write_vtodos() {
     let result = h.run_sync(true);
 
     assert!(result.errors.is_empty(), "sync errors: {:?}", result.errors);
-    assert_eq!(h.count_caldav_vtodos(), 0, "dry run must not write VTODOs to CalDAV");
-    assert!(!result.planned_ops.is_empty(), "expected at least one planned op in dry run");
+    assert_eq!(
+        h.count_caldav_vtodos(),
+        0,
+        "dry run must not write VTODOs to CalDAV"
+    );
+    assert!(
+        !result.planned_ops.is_empty(),
+        "expected at least one planned op in dry run"
+    );
 }
 
 /// TW tasks without an explicit project land in the calendar mapped to

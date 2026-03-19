@@ -12,10 +12,10 @@ use crate::types::{FetchedVTODO, IREntry, TWTask, Warning};
 ///   2. First `calendars` entry whose `project` is `"default"` (fallback).
 ///   3. `None` — caller should emit an `UnmappedProject` warning.
 fn resolve_calendar_url(project: Option<&str>, config: &Config) -> Option<String> {
-    if let Some(proj) = project {
-        if let Some(entry) = config.calendars.iter().find(|c| c.project == proj) {
-            return Some(entry.url.clone());
-        }
+    if let Some(proj) = project
+        && let Some(entry) = config.calendars.iter().find(|c| c.project == proj)
+    {
+        return Some(entry.url.clone());
     }
     config
         .calendars
@@ -227,11 +227,7 @@ mod tests {
         }
     }
 
-    fn make_tw_task(
-        uuid: Uuid,
-        caldavuid: Option<&str>,
-        project: Option<&str>,
-    ) -> TWTask {
+    fn make_tw_task(uuid: Uuid, caldavuid: Option<&str>, project: Option<&str>) -> TWTask {
         TWTask {
             uuid,
             status: "pending".to_string(),
@@ -280,10 +276,16 @@ mod tests {
         assert_eq!(entries.len(), 1);
         let e = &entries[0];
         assert_eq!(e.tw_uuid, Some(uuid));
-        assert!(e.caldav_uid.is_some(), "fresh caldav_uid should be assigned");
+        assert!(
+            e.caldav_uid.is_some(),
+            "fresh caldav_uid should be assigned"
+        );
         assert!(e.tw_task.is_some());
         assert!(e.fetched_vtodo.is_none());
-        assert_eq!(e.calendar_url.as_deref(), Some("https://dav.example.com/cal/"));
+        assert_eq!(
+            e.calendar_url.as_deref(),
+            Some("https://dav.example.com/cal/")
+        );
         assert!(!e.dirty_tw);
         assert!(!e.dirty_caldav);
         assert!(!e.cyclic);
@@ -297,10 +299,7 @@ mod tests {
         let tasks = vec![make_tw_task(uuid, Some(caldav_uid), None)];
         let vtodo = make_vtodo(caldav_uid, Some("NEEDS-ACTION"), None);
         let mut vtodos = HashMap::new();
-        vtodos.insert(
-            "https://dav.example.com/cal/".to_string(),
-            vec![vtodo],
-        );
+        vtodos.insert("https://dav.example.com/cal/".to_string(), vec![vtodo]);
 
         let (entries, warnings) = build_ir(&tasks, &vtodos, &config);
 
@@ -335,17 +334,17 @@ mod tests {
         let config = make_config(vec![("default", "https://dav.example.com/cal/")]);
         let vtodo = make_vtodo("needs-action-uid", Some("NEEDS-ACTION"), None);
         let mut vtodos = HashMap::new();
-        vtodos.insert(
-            "https://dav.example.com/cal/".to_string(),
-            vec![vtodo],
-        );
+        vtodos.insert("https://dav.example.com/cal/".to_string(), vec![vtodo]);
 
         let (entries, warnings) = build_ir(&[], &vtodos, &config);
 
         assert!(warnings.is_empty());
         assert_eq!(entries.len(), 1);
         let e = &entries[0];
-        assert!(e.tw_uuid.is_some(), "NEEDS-ACTION entry must get a fresh UUID4");
+        assert!(
+            e.tw_uuid.is_some(),
+            "NEEDS-ACTION entry must get a fresh UUID4"
+        );
         assert!(e.tw_task.is_none());
         assert!(e.fetched_vtodo.is_some());
     }
@@ -355,15 +354,15 @@ mod tests {
         let config = make_config(vec![("default", "https://dav.example.com/cal/")]);
         let vtodo = make_vtodo("completed-uid", Some("COMPLETED"), None);
         let mut vtodos = HashMap::new();
-        vtodos.insert(
-            "https://dav.example.com/cal/".to_string(),
-            vec![vtodo],
-        );
+        vtodos.insert("https://dav.example.com/cal/".to_string(), vec![vtodo]);
 
         let (entries, _warnings) = build_ir(&[], &vtodos, &config);
 
         assert_eq!(entries.len(), 1);
-        assert!(entries[0].tw_uuid.is_none(), "COMPLETED entry must have tw_uuid=None");
+        assert!(
+            entries[0].tw_uuid.is_none(),
+            "COMPLETED entry must have tw_uuid=None"
+        );
     }
 
     #[test]
@@ -371,15 +370,15 @@ mod tests {
         let config = make_config(vec![("default", "https://dav.example.com/cal/")]);
         let vtodo = make_vtodo("cancelled-uid", Some("CANCELLED"), None);
         let mut vtodos = HashMap::new();
-        vtodos.insert(
-            "https://dav.example.com/cal/".to_string(),
-            vec![vtodo],
-        );
+        vtodos.insert("https://dav.example.com/cal/".to_string(), vec![vtodo]);
 
         let (entries, _warnings) = build_ir(&[], &vtodos, &config);
 
         assert_eq!(entries.len(), 1);
-        assert!(entries[0].tw_uuid.is_none(), "CANCELLED entry must have tw_uuid=None");
+        assert!(
+            entries[0].tw_uuid.is_none(),
+            "CANCELLED entry must have tw_uuid=None"
+        );
     }
 
     #[test]
@@ -387,10 +386,7 @@ mod tests {
         let config = make_config(vec![("default", "https://dav.example.com/cal/")]);
         let vtodo = make_vtodo("recurring-uid", Some("NEEDS-ACTION"), Some("FREQ=WEEKLY"));
         let mut vtodos = HashMap::new();
-        vtodos.insert(
-            "https://dav.example.com/cal/".to_string(),
-            vec![vtodo],
-        );
+        vtodos.insert("https://dav.example.com/cal/".to_string(), vec![vtodo]);
 
         let (entries, warnings) = build_ir(&[], &vtodos, &config);
 
@@ -426,7 +422,10 @@ mod tests {
         let (entries, warnings) = build_ir(&tasks, &HashMap::new(), &config);
 
         assert!(warnings.is_empty());
-        assert_eq!(entries[0].calendar_url.as_deref(), Some("https://dav.example.com/work/"));
+        assert_eq!(
+            entries[0].calendar_url.as_deref(),
+            Some("https://dav.example.com/work/")
+        );
     }
 
     #[test]

@@ -2,6 +2,7 @@ use crate::types::FetchedVTODO;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+#[allow(clippy::large_enum_variant)]
 pub enum CaldaWarriorError {
     #[error("Configuration error: {0}")]
     Config(String),
@@ -21,7 +22,9 @@ pub enum CaldaWarriorError {
     #[error("Sync conflict could not be resolved automatically")]
     SyncConflict,
 
-    #[error("ETag conflict: server resource changed during sync; refetched VTODO is attached for retry")]
+    #[error(
+        "ETag conflict: server resource changed during sync; refetched VTODO is attached for retry"
+    )]
     EtagConflict { refetched_vtodo: FetchedVTODO },
 }
 
@@ -38,14 +41,19 @@ mod tests {
 
     #[test]
     fn tw_error_display() {
-        let e = CaldaWarriorError::Tw { code: 1, stderr: "not found".to_string() };
+        let e = CaldaWarriorError::Tw {
+            code: 1,
+            stderr: "not found".to_string(),
+        };
         assert!(e.to_string().contains("1"));
         assert!(e.to_string().contains("not found"));
     }
 
     #[test]
     fn auth_error_directs_to_credentials() {
-        let e = CaldaWarriorError::Auth { server_url: "https://dav.example.com".to_string() };
+        let e = CaldaWarriorError::Auth {
+            server_url: "https://dav.example.com".to_string(),
+        };
         let msg = e.to_string();
         assert!(msg.contains("dav.example.com"));
         assert!(msg.to_lowercase().contains("credential"));
@@ -62,7 +70,9 @@ mod tests {
             etag: Some("\"abc123\"".to_string()),
             vtodo,
         };
-        let e = CaldaWarriorError::EtagConflict { refetched_vtodo: fetched.clone() };
+        let e = CaldaWarriorError::EtagConflict {
+            refetched_vtodo: fetched.clone(),
+        };
         assert!(e.to_string().contains("ETag"));
         // Verify we can destructure and access the inner value
         if let CaldaWarriorError::EtagConflict { refetched_vtodo } = e {

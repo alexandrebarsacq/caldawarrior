@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::{should_skip, TestHarness};
+use super::{TestHarness, should_skip};
 
 /// CalDAV COMPLETED status syncs back to TW as a completed task.
 #[test]
@@ -61,17 +61,26 @@ fn dependency_sync_tw_to_caldav() {
 
     let r1 = h.run_sync(false);
     assert!(r1.errors.is_empty(), "sync 1 errors: {:?}", r1.errors);
-    assert_eq!(r1.written_caldav, 2, "both tasks should be pushed to CalDAV");
+    assert_eq!(
+        r1.written_caldav, 2,
+        "both tasks should be pushed to CalDAV"
+    );
     assert_eq!(h.count_caldav_vtodos(), 2);
 
     // Get A's caldavuid (set after sync)
     let task_a = h.get_tw_task(&uuid_a);
     let caldavuid_a = task_a["caldavuid"].as_str().unwrap_or("").to_string();
-    assert!(!caldavuid_a.is_empty(), "Task A should have caldavuid after sync");
+    assert!(
+        !caldavuid_a.is_empty(),
+        "Task A should have caldavuid after sync"
+    );
 
     let task_b = h.get_tw_task(&uuid_b);
     let caldavuid_b = task_b["caldavuid"].as_str().unwrap_or("").to_string();
-    assert!(!caldavuid_b.is_empty(), "Task B should have caldavuid after sync");
+    assert!(
+        !caldavuid_b.is_empty(),
+        "Task B should have caldavuid after sync"
+    );
 
     // Task B's VTODO should have RELATED-TO;RELTYPE=DEPENDS-ON pointing to A's UID
     let vtodo_b_ical = h
@@ -86,8 +95,14 @@ fn dependency_sync_tw_to_caldav() {
     // Stable-point: second sync should produce no writes
     let r2 = h.run_sync(false);
     assert!(r2.errors.is_empty(), "sync 2 errors: {:?}", r2.errors);
-    assert_eq!(r2.written_caldav, 0, "dependency sync should be stable (no caldav writes)");
-    assert_eq!(r2.written_tw, 0, "dependency sync should be stable (no tw writes)");
+    assert_eq!(
+        r2.written_caldav, 0,
+        "dependency sync should be stable (no caldav writes)"
+    );
+    assert_eq!(
+        r2.written_tw, 0,
+        "dependency sync should be stable (no tw writes)"
+    );
 
     // Phase (b): CalDAV → TW reverse dependency sync (new VTODO with RELATED-TO)
     // Create a new CalDAV-only VTODO C that depends on A (via RELATED-TO)
@@ -132,11 +147,18 @@ fn orphaned_caldavuid_causes_tw_deletion() {
     // Verify caldavuid was set on TW task after sync
     let task = h.get_tw_task(&uuid);
     let caldavuid = task["caldavuid"].as_str().unwrap_or("");
-    assert!(!caldavuid.is_empty(), "caldavuid should be set after first sync");
+    assert!(
+        !caldavuid.is_empty(),
+        "caldavuid should be set after first sync"
+    );
 
     // Delete the VTODO from CalDAV directly (simulates external deletion)
     h.delete_first_vtodo();
-    assert_eq!(h.count_caldav_vtodos(), 0, "VTODO should be deleted from CalDAV");
+    assert_eq!(
+        h.count_caldav_vtodos(),
+        0,
+        "VTODO should be deleted from CalDAV"
+    );
 
     // Sync: TW task has caldavuid but no matching VTODO → orphaned → TW task deleted
     let r2 = h.run_sync(false);
@@ -178,8 +200,9 @@ fn large_dataset_first_sync() {
     const TASK_COUNT: usize = 100;
 
     // Add 100 TW tasks using bulk helper
-    let descriptions: Vec<String> =
-        (0..TASK_COUNT).map(|i| format!("Large dataset task {}", i + 1)).collect();
+    let descriptions: Vec<String> = (0..TASK_COUNT)
+        .map(|i| format!("Large dataset task {}", i + 1))
+        .collect();
     let desc_refs: Vec<&str> = descriptions.iter().map(|s| s.as_str()).collect();
     h.import_tw_tasks_bulk(&desc_refs);
 
@@ -199,7 +222,10 @@ fn large_dataset_first_sync() {
     // Second sync: stable point — no duplication, no data loss
     let r2 = h.run_sync(false);
     assert!(r2.errors.is_empty(), "stable sync errors: {:?}", r2.errors);
-    assert_eq!(r2.written_caldav, 0, "no CalDAV writes on stable sync (no duplication)");
+    assert_eq!(
+        r2.written_caldav, 0,
+        "no CalDAV writes on stable sync (no duplication)"
+    );
     assert_eq!(r2.written_tw, 0, "no TW writes on stable sync");
     assert_eq!(
         h.count_caldav_vtodos(),

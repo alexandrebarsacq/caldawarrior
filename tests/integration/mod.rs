@@ -149,7 +149,9 @@ impl TaskRunner for DockerizedTaskRunner {
             .args(&docker_args)
             .args(args)
             .output()
-            .map_err(|e| CaldaWarriorError::Config(format!("Failed to run dockerized task: {e}")))?;
+            .map_err(|e| {
+                CaldaWarriorError::Config(format!("Failed to run dockerized task: {e}"))
+            })?;
 
         if !output.status.success() {
             let code = output.status.code().unwrap_or(-1);
@@ -169,17 +171,19 @@ impl TaskRunner for DockerizedTaskRunner {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| CaldaWarriorError::Config(format!("Failed to spawn dockerized task import: {e}")))?;
+            .map_err(|e| {
+                CaldaWarriorError::Config(format!("Failed to spawn dockerized task import: {e}"))
+            })?;
 
         if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(json)
-                .map_err(|e| CaldaWarriorError::Config(format!("Failed to write task import stdin: {e}")))?;
+            stdin.write_all(json).map_err(|e| {
+                CaldaWarriorError::Config(format!("Failed to write task import stdin: {e}"))
+            })?;
         }
 
-        let output = child
-            .wait_with_output()
-            .map_err(|e| CaldaWarriorError::Config(format!("Failed to wait for dockerized task import: {e}")))?;
+        let output = child.wait_with_output().map_err(|e| {
+            CaldaWarriorError::Config(format!("Failed to wait for dockerized task import: {e}"))
+        })?;
 
         if !output.status.success() {
             let code = output.status.code().unwrap_or(-1);
@@ -272,7 +276,11 @@ impl TestHarness {
             }],
         };
 
-        Self { config, tw_dir, http }
+        Self {
+            config,
+            tw_dir,
+            http,
+        }
     }
 
     /// The URL of this harness's CalDAV calendar.
@@ -384,12 +392,17 @@ impl TestHarness {
         let vol = format!("{}:/data", self.tw_dir.path().display());
         let output = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                uuid, "done",
+                uuid,
+                "done",
             ])
             .output()
             .expect("docker run task done");
@@ -408,12 +421,18 @@ impl TestHarness {
         let depends_arg = format!("depends:{depends_on_uuid}");
         let output = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                "add", description, &depends_arg,
+                "add",
+                description,
+                &depends_arg,
             ])
             .output()
             .expect("docker run task add with depends");
@@ -437,17 +456,21 @@ impl TestHarness {
         // Export that specific task to get its UUID.
         let out = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                task_id.to_string().as_str(), "export",
+                task_id.to_string().as_str(),
+                "export",
             ])
             .output()
             .expect("docker run task export");
-        let tasks: Vec<serde_json::Value> =
-            serde_json::from_slice(&out.stdout).unwrap_or_default();
+        let tasks: Vec<serde_json::Value> = serde_json::from_slice(&out.stdout).unwrap_or_default();
         tasks
             .first()
             .and_then(|t| t["uuid"].as_str())
@@ -553,12 +576,17 @@ impl TestHarness {
         for desc in task_descs {
             let output = Command::new("docker")
                 .args([
-                    "run", "--rm",
-                    "-v", &vol,
-                    "-e", "TASKDATA=/data",
-                    "-e", "TASKRC=/data/.taskrc",
+                    "run",
+                    "--rm",
+                    "-v",
+                    &vol,
+                    "-e",
+                    "TASKDATA=/data",
+                    "-e",
+                    "TASKRC=/data/.taskrc",
                     TASKWARRIOR_IMAGE,
-                    "add", desc,
+                    "add",
+                    desc,
                 ])
                 .output()
                 .expect("docker run task add bulk");
@@ -599,12 +627,17 @@ impl TestHarness {
         let vol = format!("{}:/data", self.tw_dir.path().display());
         let output = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                "add", description,
+                "add",
+                description,
             ])
             .output()
             .expect("docker run task add");
@@ -628,17 +661,21 @@ impl TestHarness {
         // Export that specific task to get its UUID.
         let out = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                task_id.to_string().as_str(), "export",
+                task_id.to_string().as_str(),
+                "export",
             ])
             .output()
             .expect("docker run task export");
-        let tasks: Vec<serde_json::Value> =
-            serde_json::from_slice(&out.stdout).unwrap_or_default();
+        let tasks: Vec<serde_json::Value> = serde_json::from_slice(&out.stdout).unwrap_or_default();
         tasks
             .first()
             .and_then(|t| t["uuid"].as_str())
@@ -651,12 +688,17 @@ impl TestHarness {
         let vol = format!("{}:/data", self.tw_dir.path().display());
         let output = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                uuid, "modify",
+                uuid,
+                "modify",
                 &format!("description:{description}"),
             ])
             .output()
@@ -673,17 +715,21 @@ impl TestHarness {
         let vol = format!("{}:/data", self.tw_dir.path().display());
         let out = Command::new("docker")
             .args([
-                "run", "--rm",
-                "-v", &vol,
-                "-e", "TASKDATA=/data",
-                "-e", "TASKRC=/data/.taskrc",
+                "run",
+                "--rm",
+                "-v",
+                &vol,
+                "-e",
+                "TASKDATA=/data",
+                "-e",
+                "TASKRC=/data/.taskrc",
                 TASKWARRIOR_IMAGE,
-                uuid, "export",
+                uuid,
+                "export",
             ])
             .output()
             .expect("docker run task export");
-        let tasks: Vec<serde_json::Value> =
-            serde_json::from_slice(&out.stdout).unwrap_or_default();
+        let tasks: Vec<serde_json::Value> = serde_json::from_slice(&out.stdout).unwrap_or_default();
         tasks.into_iter().next().unwrap_or(serde_json::Value::Null)
     }
 
@@ -713,7 +759,16 @@ impl TestHarness {
             vtodos_by_calendar.insert(cal.url.clone(), vtodos);
         }
 
-        run_sync(&tw_tasks, &vtodos_by_calendar, &self.config, &tw, &caldav, dry_run, false, Utc::now())
+        run_sync(
+            &tw_tasks,
+            &vtodos_by_calendar,
+            &self.config,
+            &tw,
+            &caldav,
+            dry_run,
+            false,
+            Utc::now(),
+        )
     }
 }
 
@@ -737,14 +792,13 @@ pub(crate) fn parse_hrefs_from_multistatus(xml: &str) -> Vec<String> {
     let mut hrefs = Vec::new();
     let mut remaining = xml;
     loop {
-        let (open_pos, open_tag_len, close_tag) =
-            if let Some(p) = remaining.find("<D:href>") {
-                (p, 8usize, "</D:href>")
-            } else if let Some(p) = remaining.find("<href>") {
-                (p, 6usize, "</href>")
-            } else {
-                break;
-            };
+        let (open_pos, open_tag_len, close_tag) = if let Some(p) = remaining.find("<D:href>") {
+            (p, 8usize, "</D:href>")
+        } else if let Some(p) = remaining.find("<href>") {
+            (p, 6usize, "</href>")
+        } else {
+            break;
+        };
 
         let content_start = open_pos + open_tag_len;
         if let Some(end) = remaining[content_start..].find(close_tag) {

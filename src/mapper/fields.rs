@@ -129,12 +129,19 @@ pub fn tw_to_caldav_fields(task: &TWTask, now: DateTime<Utc>) -> TwCalDavFields 
 /// handled separately in [`crate::mapper::status`].
 pub fn caldav_to_tw_fields(vtodo: &VTODO) -> CalDavTwFields {
     // VTODO SUMMARY → TW description; fall back to sentinel when absent.
-    let description = vtodo.summary.clone().unwrap_or_else(|| "(no title)".to_string());
+    let description = vtodo
+        .summary
+        .clone()
+        .unwrap_or_else(|| "(no title)".to_string());
 
     // VTODO DESCRIPTION → TW annotations_text; treat empty/whitespace as absent.
     let annotations_text = vtodo.description.as_deref().and_then(|s| {
         let trimmed = s.trim();
-        if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
     });
 
     // VTODO PRIORITY → TW priority letter.
@@ -385,7 +392,11 @@ mod tests {
         ];
 
         let fields = caldav_to_tw_fields(&vtodo);
-        assert_eq!(fields.depends.len(), 2, "only DEPENDS-ON entries should be included");
+        assert_eq!(
+            fields.depends.len(),
+            2,
+            "only DEPENDS-ON entries should be included"
+        );
         assert!(fields.depends.contains(&dep1));
         assert!(fields.depends.contains(&dep2));
     }
@@ -452,7 +463,11 @@ mod tests {
             let mut vtodo = make_vtodo();
             vtodo.priority = Some(p);
             let fields = caldav_to_tw_fields(&vtodo);
-            assert_eq!(fields.priority.as_deref(), Some("H"), "priority {p} should map to H");
+            assert_eq!(
+                fields.priority.as_deref(),
+                Some("H"),
+                "priority {p} should map to H"
+            );
         }
     }
 

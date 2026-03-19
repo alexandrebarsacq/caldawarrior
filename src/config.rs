@@ -49,18 +49,19 @@ pub fn load(config_path: Option<&Path>) -> Result<Config, CaldaWarriorError> {
     let path = resolve_path(config_path)?;
 
     // 2. Read file
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| CaldaWarriorError::Config(format!("Cannot read config file {:?}: {}", path, e)))?;
+    let content = std::fs::read_to_string(&path).map_err(|e| {
+        CaldaWarriorError::Config(format!("Cannot read config file {:?}: {}", path, e))
+    })?;
 
     // 3. Parse TOML
     let mut config: Config = toml::from_str(&content)
         .map_err(|e| CaldaWarriorError::Config(format!("Invalid config file {:?}: {}", path, e)))?;
 
     // 4. CALDAWARRIOR_PASSWORD env override
-    if let Ok(pw) = std::env::var("CALDAWARRIOR_PASSWORD") {
-        if !pw.is_empty() {
-            config.password = pw;
-        }
+    if let Ok(pw) = std::env::var("CALDAWARRIOR_PASSWORD")
+        && !pw.is_empty()
+    {
+        config.password = pw;
     }
 
     // 5. Permission check (Unix only, non-fatal)
@@ -80,9 +81,13 @@ fn resolve_path(config_path: Option<&Path>) -> Result<PathBuf, CaldaWarriorError
         return Ok(PathBuf::from(env_path));
     }
     // Default: ~/.config/caldawarrior/config.toml
-    let home = std::env::var("HOME")
-        .map_err(|_| CaldaWarriorError::Config("Cannot determine home directory (HOME not set)".to_string()))?;
-    Ok(PathBuf::from(home).join(".config").join("caldawarrior").join("config.toml"))
+    let home = std::env::var("HOME").map_err(|_| {
+        CaldaWarriorError::Config("Cannot determine home directory (HOME not set)".to_string())
+    })?;
+    Ok(PathBuf::from(home)
+        .join(".config")
+        .join("caldawarrior")
+        .join("config.toml"))
 }
 
 #[cfg(unix)]
@@ -92,7 +97,11 @@ fn check_permissions(path: &Path) {
         let mode = meta.permissions().mode();
         // mode & 0o777 gives the rwxrwxrwx bits; 0o600 = owner rw only
         if mode & 0o177 != 0 {
-            eprintln!("[WARN] Config file {:?} has permissions {:04o} — recommended: 0600", path, mode & 0o777);
+            eprintln!(
+                "[WARN] Config file {:?} has permissions {:04o} — recommended: 0600",
+                path,
+                mode & 0o777
+            );
         }
     }
 }
@@ -112,9 +121,10 @@ fn validate(config: &Config) -> Result<(), CaldaWarriorError> {
     let mut seen = std::collections::HashSet::new();
     for url in &non_default {
         if !seen.insert(*url) {
-            return Err(CaldaWarriorError::Config(
-                format!("Duplicate calendar URL found: {}", url),
-            ));
+            return Err(CaldaWarriorError::Config(format!(
+                "Duplicate calendar URL found: {}",
+                url
+            )));
         }
     }
     Ok(())

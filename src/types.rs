@@ -75,7 +75,7 @@ pub mod tw_depends {
     use serde::{self, Deserialize, Deserializer, Serializer};
     use uuid::Uuid;
 
-    pub fn serialize<S>(uuids: &Vec<Uuid>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(uuids: &[Uuid], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -449,6 +449,10 @@ mod tests {
         assert!(task.annotations.is_empty());
         // empty vec should not appear in serialized output (skip_serializing_if = "Vec::is_empty")
         let back = serde_json::to_string(&task).expect("serialize");
-        assert!(!back.contains("\"annotations\""), "empty annotations should be omitted: {}", back);
+        assert!(
+            !back.contains("\"annotations\""),
+            "empty annotations should be omitted: {}",
+            back
+        );
     }
 }

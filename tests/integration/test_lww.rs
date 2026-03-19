@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use super::{should_skip, TestHarness};
+use super::{TestHarness, should_skip};
 
 /// TW task modified after first sync → TW wins LWW → CalDAV updated.
 #[test]
@@ -117,7 +117,11 @@ fn loop_prevention_stable_point() {
     // Sync 4 immediately: content is now identical on both sides →
     // stable point, no writes in either direction.
     let r4 = h.run_sync(false);
-    assert!(r4.errors.is_empty(), "sync 4 (stable-point) errors: {:?}", r4.errors);
+    assert!(
+        r4.errors.is_empty(),
+        "sync 4 (stable-point) errors: {:?}",
+        r4.errors
+    );
     assert_eq!(
         r4.written_caldav, 0,
         "loop prevention: no CalDAV writes on stable-point sync"

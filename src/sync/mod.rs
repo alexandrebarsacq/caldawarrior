@@ -9,8 +9,8 @@ use chrono::{DateTime, Utc};
 use crate::caldav_adapter::CalDavClient;
 use crate::config::Config;
 use crate::ir::build_ir;
-use crate::types::{FetchedVTODO, SyncResult, TWTask};
 use crate::tw_adapter::{TaskRunner, TwAdapter};
+use crate::types::{FetchedVTODO, SyncResult, TWTask};
 
 use self::deps::resolve_dependencies;
 use self::writeback::apply_writeback;
@@ -28,6 +28,7 @@ use self::writeback::apply_writeback;
 ///    retry logic — it propagates the result as-is.
 ///
 /// Warnings from all three steps are merged into `SyncResult.warnings`.
+#[allow(clippy::too_many_arguments)]
 pub fn run_sync<R: TaskRunner>(
     tw_tasks: &[TWTask],
     vtodos_by_calendar: &HashMap<String, Vec<FetchedVTODO>>,
@@ -57,15 +58,15 @@ pub fn run_sync<R: TaskRunner>(
     let (mut ir, ir_warnings) = build_ir(&filtered, vtodos_by_calendar, config);
 
     // Step 2: resolve dependencies.
-    let dep_warnings = resolve_dependencies(&mut ir);
+    let mut dep_warnings = resolve_dependencies(&mut ir);
 
     // Step 3: apply write-back (ETag retry owned here, not in run_sync).
     let mut result = apply_writeback(&mut ir, tw, caldav, dry_run, fail_fast, now);
 
     // Merge warnings from steps 1 and 2 into the result.
     let mut all_warnings = ir_warnings;
-    all_warnings.extend(dep_warnings);
-    all_warnings.extend(result.warnings.drain(..));
+    all_warnings.append(&mut dep_warnings);
+    all_warnings.append(&mut result.warnings);
     result.warnings = all_warnings;
 
     result
@@ -158,9 +159,19 @@ mod tests {
             t(2026, 2, 2, 0, 0, 0),
         );
 
-        assert_eq!(result.written_caldav, 1, "TW-only task must be pushed to CalDAV");
-        assert_eq!(result.written_tw, 1, "TW task must be updated with caldavuid");
-        assert!(result.errors.is_empty(), "no errors expected: {:?}", result.errors);
+        assert_eq!(
+            result.written_caldav, 1,
+            "TW-only task must be pushed to CalDAV"
+        );
+        assert_eq!(
+            result.written_tw, 1,
+            "TW task must be updated with caldavuid"
+        );
+        assert!(
+            result.errors.is_empty(),
+            "no errors expected: {:?}",
+            result.errors
+        );
         let calls = caldav.calls.lock().unwrap();
         assert!(calls.iter().any(|c| matches!(c, CalDavCall::Put { .. })));
     }
@@ -220,7 +231,10 @@ mod tests {
         );
 
         assert!(
-            result.warnings.iter().any(|w| w.message.contains("UnmappedProject")),
+            result
+                .warnings
+                .iter()
+                .any(|w| w.message.contains("UnmappedProject")),
             "expected UnmappedProject warning in result: {:?}",
             result.warnings
         );
@@ -270,6 +284,10 @@ mod tests {
             .iter()
             .filter(|w| w.message.contains("UnresolvableDependency"))
             .collect();
-        assert!(dep_warnings.is_empty(), "no dep warnings expected: {:?}", dep_warnings);
+        assert!(
+            dep_warnings.is_empty(),
+            "no dep warnings expected: {:?}",
+            dep_warnings
+        );
     }
 }
