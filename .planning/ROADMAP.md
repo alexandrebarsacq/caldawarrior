@@ -77,11 +77,11 @@ Plans:
   2. DATE-only DUE values (YYYYMMDD without time component) parse correctly and survive a sync round-trip without gaining a spurious time component
   3. VTODO datetimes with TZID parameters for common timezones (including across DST transitions) parse and round-trip correctly
   4. Non-standard properties (X-APPLE-SORT-ORDER, X-OC-HIDESUBTASKS, etc.) written by other clients survive a caldawarrior sync without being stripped
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md — DATE-only value preservation, DST ambiguity fix, writeback propagation, and unit tests (COMPAT-02, COMPAT-03)
+- [ ] 04-02-PLAN.md — Radicale XML edge-case tests, put_vtodo_raw_ical keyword, and E2E compatibility suite (COMPAT-01, COMPAT-04)
 
 ### Phase 5: CI/CD and Packaging
 **Goal**: Every commit is automatically tested, audited, and release-ready binaries are one push away
@@ -120,6 +120,6 @@ Note: Phases 2, 3, 4 can execute in parallel after Phase 1 completes. Phase 5 ca
 | 1. Code Audit and Bug Fixes | 3/3 | Complete | 2026-03-18 |
 | 2. Relation Verification | 2/2 | Complete | 2026-03-19 |
 | 3. Field and Sync Correctness | 2/3 | In Progress | - |
-| 4. Compatibility | 0/? | Not started | - |
+| 4. Compatibility | 0/2 | Not started | - |
 | 5. CI/CD and Packaging | 0/? | Not started | - |
 | 6. Documentation and Release | 0/? | Not started | - |
