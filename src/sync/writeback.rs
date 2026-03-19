@@ -1292,4 +1292,34 @@ mod tests {
             "Tag with comma must be preserved as single category"
         );
     }
+
+    #[test]
+    fn caldav_cancelled_tw_pending_deletes_tw() {
+        // CalDAV CANCELLED + TW pending -> DeleteFromTw (the bug fix).
+        let uuid = Uuid::new_v4();
+        let caldav_uid = uuid.to_string();
+        let ts = t(2026, 2, 1, 10, 0, 0);
+        let entry = make_paired_entry(uuid, &caldav_uid, "pending", ts, "CANCELLED", ts);
+        let op = decide_op(&entry, t(2026, 2, 2, 0, 0, 0)).unwrap();
+        assert!(
+            matches!(op, PlannedOp::DeleteFromTw(_)),
+            "CalDAV CANCELLED + TW pending should delete TW task, got {:?}",
+            op
+        );
+    }
+
+    #[test]
+    fn caldav_cancelled_tw_waiting_deletes_tw() {
+        // CalDAV CANCELLED + TW waiting -> DeleteFromTw.
+        let uuid = Uuid::new_v4();
+        let caldav_uid = uuid.to_string();
+        let ts = t(2026, 2, 1, 10, 0, 0);
+        let entry = make_paired_entry(uuid, &caldav_uid, "waiting", ts, "CANCELLED", ts);
+        let op = decide_op(&entry, t(2026, 2, 2, 0, 0, 0)).unwrap();
+        assert!(
+            matches!(op, PlannedOp::DeleteFromTw(_)),
+            "CalDAV CANCELLED + TW waiting should delete TW task, got {:?}",
+            op
+        );
+    }
 }
