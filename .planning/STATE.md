@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-19T07:43:09Z"
-last_activity: 2026-03-19 -- Completed 03-01-PLAN.md (Status transitions and deletion propagation)
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-19T08:02:31Z"
+last_activity: 2026-03-19 -- Completed 03-02-PLAN.md (Field mapping E2E tests and idempotency suite)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 85
+  completed_plans: 7
+  percent: 90
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase: 3 of 6 (Field and Sync Correctness)
-Plan: 1 of 2 in current phase (03-01 complete)
+Phase: 3 of 6 (Field and Sync Correctness) -- COMPLETE
+Plan: 2 of 2 in current phase (03-02 complete)
 Status: in-progress
-Last activity: 2026-03-19 -- Completed 03-01-PLAN.md (Status transitions and deletion propagation)
+Last activity: 2026-03-19 -- Completed 03-02-PLAN.md (Field mapping E2E tests and idempotency suite)
 
-Progress: [████████░░] 85%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [████████░░] 85%
 | Phase 02 P01 | 3 | 1 tasks | 2 files |
 | Phase 02 P02 | 13 | 2 tasks | 5 files |
 | Phase 03 P01 | 9  | 3 tasks | 5 files |
+| Phase 03 P02 | 16 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 02]: tasks.org DEPENDS-ON invisible but preserved -- documented as limitation with MEDIUM confidence
 - [Phase 03]: Completed status special-casing checks LWW timestamps before short-circuiting -- enables reopen propagation
 - [Phase 03]: SkipReason::Cancelled retained for CalDAV-only branch -- still needed by orphan logic
+- [Phase 03]: content_identical expanded to 10 fields (added PRIORITY and CATEGORIES) -- prevents LWW short-circuit on priority/tag-only changes
+- [Phase 03]: tw.update() switched from task modify to task import -- enables atomic upsert of all fields including tags and annotations
+- [Phase 03]: CalDAV CATEGORIES mapped to TW tags in build_tw_task_from_caldav -- previously only TW-to-CalDAV direction worked
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T07:43:09Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-field-and-sync-correctness/03-01-SUMMARY.md
+Last session: 2026-03-19T08:02:31Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: .planning/phases/03-field-and-sync-correctness/03-02-SUMMARY.md

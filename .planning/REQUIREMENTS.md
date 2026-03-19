@@ -23,10 +23,10 @@ Requirements for hardening milestone. Each maps to roadmap phases.
 
 ### Field Mapping
 
-- [ ] **FIELD-01**: All mapped fields have E2E tests covering create, update, and clear operations (SUMMARY, DESCRIPTION, STATUS, PRIORITY, DUE, DTSTART, COMPLETED, CATEGORIES, RELATED-TO, X-TASKWARRIOR-WAIT)
+- [x] **FIELD-01**: All mapped fields have E2E tests covering create, update, and clear operations (SUMMARY, DESCRIPTION, STATUS, PRIORITY, DUE, DTSTART, COMPLETED, CATEGORIES, RELATED-TO, X-TASKWARRIOR-WAIT)
 - [x] **FIELD-02**: All status transitions tested E2E — pending↔completed, pending→deleted→CANCELLED, and reverse paths
 - [x] **FIELD-03**: Deletion propagation tested both directions — TW delete→CalDAV CANCELLED, CalDAV orphan→TW handling
-- [ ] **FIELD-04**: Idempotent sync verified — re-running sync after any operation produces no changes
+- [x] **FIELD-04**: Idempotent sync verified — re-running sync after any operation produces no changes
 
 ### Compatibility
 
@@ -93,10 +93,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REL-02 | Phase 2 | Complete |
 | REL-03 | Phase 2 | Complete |
 | REL-04 | Phase 2 | Complete |
-| FIELD-01 | Phase 3 | Pending |
+| FIELD-01 | Phase 3 | Complete |
 | FIELD-02 | Phase 3 | Complete |
 | FIELD-03 | Phase 3 | Complete |
-| FIELD-04 | Phase 3 | Pending |
+| FIELD-04 | Phase 3 | Complete |
 | COMPAT-01 | Phase 4 | Pending |
 | COMPAT-02 | Phase 4 | Pending |
 | COMPAT-03 | Phase 4 | Pending |
