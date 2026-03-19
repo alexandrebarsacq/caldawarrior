@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Rust CLI tool that bidirectionally syncs TaskWarrior tasks with CalDAV servers (primarily Radicale) via the VTODO standard. Born as a clone of [twcaldav](https://github.com/pcaro90/twcaldav/) but with support for task relations (depends/blocks) — something twcaldav lists as unimplemented. The primary use case is TaskWarrior + Radicale + tasks.org (Android), but it should work with any VTODO-compliant client.
+A Rust CLI tool that bidirectionally syncs TaskWarrior tasks with CalDAV servers via the VTODO standard. Supports task dependency relations (depends/blocks) via RELATED-TO — something no other TW-CalDAV bridge implements. Ships as a single binary with full CI/CD pipeline.
 
 ## Core Value
 
@@ -12,58 +12,52 @@ Reliable bidirectional sync between TaskWarrior and CalDAV, including task depen
 
 ### Validated
 
-<!-- Inferred from existing codebase — these capabilities exist today. -->
-
-- ✓ Bidirectional sync of tasks between TW and CalDAV — existing
-- ✓ Field mapping: description↔SUMMARY, status, priority, due, scheduled, wait, tags, annotations — existing
-- ✓ LWW conflict resolution using TW.modified vs LAST-MODIFIED — existing
-- ✓ IR-based sync pipeline (pair → classify → plan → execute) — existing
-- ✓ ETag-based conditional writes with retry — existing
-- ✓ Dependency resolution: TW depends UUIDs → CalDAV RELATED-TO UIDs — existing
-- ✓ Cycle detection in dependency graphs — existing
-- ✓ Project-to-calendar mapping via TOML config — existing
-- ✓ Dry-run mode — existing
-- ✓ Basic auth with env var password override — existing
-- ✓ Completed task cutoff filtering — existing
-- ✓ Recurring VTODO filtering (skip with warning) — existing
-- ✓ Robot Framework blackbox test suite — existing
-- ✓ Rust unit + integration tests with mocked adapters — existing
+- ✓ Bidirectional sync of tasks between TW and CalDAV — v1.0
+- ✓ Field mapping: description↔SUMMARY, status, priority, due, scheduled, wait, tags, annotations↔DESCRIPTION — v1.0
+- ✓ LWW conflict resolution using TW.modified vs LAST-MODIFIED — v1.0
+- ✓ Dependency resolution: TW depends UUIDs → CalDAV RELATED-TO UIDs with cycle detection — v1.0
+- ✓ CATEGORIES comma-escaping bug fixed — v1.0
+- ✓ XML parser handles arbitrary namespace prefixes (quick-xml NsReader) — v1.0
+- ✓ ETag normalization handles weak ETags — v1.0
+- ✓ Error messages include original context — v1.0
+- ✓ DATE-only values and DST timezone handling — v1.0
+- ✓ X-property preservation across sync — v1.0
+- ✓ Idempotent sync (re-run produces zero writes) — v1.0
+- ✓ CI pipeline (lint/test/e2e/audit) and binary releases — v1.0
+- ✓ Full README, config reference, compatibility matrix — v1.0
+- ✓ 80 Robot Framework E2E tests, 192 Rust unit tests — v1.0
 
 ### Active
 
-<!-- Current scope — hardening, assessment, and ship-readiness. -->
-
-- [ ] Full code audit of all sync logic (fields, conflicts, create/update/delete, relations)
-- [ ] Verify depends/blocks relation mapping works correctly end-to-end
-- [ ] Verify bidirectional sync correctness for all field types
-- [ ] E2E test robustification — cover gaps, edge cases, relation scenarios
-- [ ] tasks.org compatibility verification (VTODO compliance)
-- [ ] RFC 5545 VTODO compliance (pragmatic — don't break the spec)
-- [ ] Docker image for self-hosting
-- [ ] Ship-ready documentation (README, config examples)
-- [ ] Binary release packaging
+- [ ] Nextcloud CalDAV full E2E test suite
+- [ ] Baikal CalDAV full E2E test suite
+- [ ] Binary releases for aarch64-linux and macOS
+- [ ] Published on crates.io via cargo install
+- [ ] WebDAV-Sync (sync-token) for efficient incremental fetching
+- [ ] Performance benchmarks for 500+ tasks
 
 ### Out of Scope
 
-- Daemon/scheduler mode — caldawarrior is a sync binary, user decides invocation (cron, hooks, etc.)
-- Parent/child hierarchical relations — only depends/blocks for now
-- Real-time push notifications — pull-based sync only
-- GUI or web interface — CLI only
-- twcaldav feature parity gaps that don't apply (twcaldav has no relations either)
+- Daemon/scheduler mode — sync binary, user controls invocation via cron/hooks
+- Parent/child subtask hierarchy — TW has no native subtask model
+- PERCENT-COMPLETE mapping — TW has no percent-complete concept
+- VALARM/reminder sync — TW has no alarm concept
+- Recurring VTODO sync (RRULE) — different semantics between TW and CalDAV
+- GUI or web interface — CLI tool for CLI users
+- Multi-user/multi-account — run separate instances
 
 ## Context
 
-- **Origin**: Clone of [pcaro90/twcaldav](https://github.com/pcaro90/twcaldav/) (Python), rewritten in Rust with relation support added
-- **twcaldav gap**: twcaldav has zero relation support — `depends` is listed as unimplemented roadmap item. Caldawarrior's relation handling is entirely original work.
-- **Primary clients**: TaskWarrior 3.x, Radicale 3.3, tasks.org (Android). Should work with any VTODO client.
-- **Current test coverage**: 170 Rust tests (148 unit + 4 main + 18 integration), 30 Robot Framework E2E tests. Three completed specs: field-mapping-fix, blackbox-integration-tests, native-lww-sync.
+- **Origin**: Clone of [pcaro90/twcaldav](https://github.com/pcaro90/twcaldav/) (Python), rewritten in Rust with relation support
+- **Primary clients**: TaskWarrior 3.x, Radicale 3.3, tasks.org (Android)
+- **Codebase**: 8,400 lines of Rust, 80 RF E2E tests, 192 unit tests, 18 integration tests
 - **Sync model**: Bidirectional LWW. Tasks correlated via `caldavuid` UDA. No intermediate sync database.
-- **Relation mapping**: TW `depends` (UUIDs) → CalDAV `RELATED-TO` with UIDs. Cycle detection via three-colour DFS. Current state: implemented but untested in production with real clients.
+- **Shipped**: v1.0 on 2026-03-19 after 7-phase hardening milestone
 
 ## Constraints
 
 - **Tech stack**: Rust, must stay compatible with TaskWarrior 3.x CLI interface
-- **CalDAV compliance**: Pragmatic RFC 5545 — prioritize tasks.org and common clients, but don't violate the spec
+- **CalDAV compliance**: Pragmatic RFC 5545 — prioritize tasks.org and common clients
 - **Testing**: Docker-based E2E tests with real TW + Radicale instances (no mocks for blackbox tests)
 
 ## Key Decisions
@@ -71,10 +65,13 @@ Reliable bidirectional sync between TaskWarrior and CalDAV, including task depen
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Rust rewrite of twcaldav | Performance, type safety, single binary distribution | ✓ Good |
-| RELATED-TO for depends | RFC 5545 standard property for task relations | — Pending verification |
+| RELATED-TO for depends | RFC 5545 standard property for task relations | ✓ Good — works E2E, invisible to clients but preserved |
 | LWW conflict resolution | Simple, predictable, matches twcaldav approach | ✓ Good |
 | No sync database | Stateless design, correlation via caldavuid UDA | ✓ Good |
-| Pragmatic VTODO compliance | tasks.org primary, but don't break spec for other clients | — Pending |
+| quick-xml NsReader | Namespace-aware XML parsing for any CalDAV server | ✓ Good — handles arbitrary prefixes |
+| task modify over task import | task import drops caldavuid UDA in TW3 Docker | ✓ Good — fixed perpetual re-sync bug |
+| DST .latest() fallback | Standard-time interpretation for ambiguous fall-back times | ✓ Good — matches RFC 5545 |
+| Cargo edition 2024 with let chains | Cleaner code with chained if-let expressions | ⚠️ Revisit — required bumping Docker Rust from 1.85 to 1.94 |
 
 ---
-*Last updated: 2026-03-18 after initialization*
+*Last updated: 2026-03-19 after v1.0 milestone*
