@@ -278,6 +278,58 @@ class CalDAVLibrary:
         )
         self._check_response(response)
 
+    def put_vtodo_with_fields(self, collection_url, uid, summary, **kwargs):
+        """Create a VTODO with arbitrary iCal properties.
+
+        Supports keyword arguments: due, dtstart, priority, description,
+        categories, wait, status.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier for the new VTODO.
+            summary: SUMMARY property value.
+            **kwargs: Additional properties (due, dtstart, priority, description,
+                categories, wait, status).
+
+        Raises:
+            AssertionError: On any HTTP error.
+        """
+        status = kwargs.get('status', 'NEEDS-ACTION')
+        lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//caldawarrior-test//EN',
+            'BEGIN:VTODO',
+            f'UID:{uid}',
+            f'DTSTAMP:{datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")}',
+            f'SUMMARY:{summary}',
+            f'STATUS:{status}',
+        ]
+        if 'due' in kwargs:
+            lines.append(f'DUE:{kwargs["due"]}')
+        if 'dtstart' in kwargs:
+            lines.append(f'DTSTART:{kwargs["dtstart"]}')
+        if 'priority' in kwargs:
+            lines.append(f'PRIORITY:{kwargs["priority"]}')
+        if 'description' in kwargs:
+            lines.append(f'DESCRIPTION:{kwargs["description"]}')
+        if 'categories' in kwargs:
+            lines.append(f'CATEGORIES:{kwargs["categories"]}')
+        if 'wait' in kwargs:
+            lines.append(f'X-TASKWARRIOR-WAIT:{kwargs["wait"]}')
+        lines.extend([
+            'END:VTODO',
+            'END:VCALENDAR',
+        ])
+        ical_text = '\r\n'.join(lines) + '\r\n'
+        url = f"{collection_url}{uid}.ics"
+        response = self._session.put(
+            url,
+            data=ical_text.encode('utf-8'),
+            headers={'Content-Type': 'text/calendar; charset=utf-8'},
+        )
+        self._check_response(response)
+
     def get_vtodo_raw(self, collection_url, uid):
         """Retrieve the raw iCalendar text of a VTODO resource.
 
@@ -385,9 +437,90 @@ class CalDAVLibrary:
         for component in cal.walk():
             if component.name == 'VTODO':
                 component['STATUS'] = new_status
+                component['LAST-MODIFIED'] = vDatetime(
+                    datetime.now(tz=timezone.utc) + timedelta(seconds=2)
+                )
                 if new_status == 'COMPLETED':
                     completed_dt = datetime.now(tz=timezone.utc)
                     component['COMPLETED'] = vDatetime(completed_dt)
+                else:
+                    if 'COMPLETED' in component:
+                        del component['COMPLETED']
+                break
+        updated = cal.to_ical().decode('utf-8')
+        url = f"{collection_url}{uid}.ics"
+        response = self._session.put(
+            url,
+            data=updated.encode('utf-8'),
+            headers={'Content-Type': 'text/calendar; charset=utf-8'},
+        )
+        self._check_response(response)
+
+    def modify_vtodo_field(self, collection_url, uid, property_name, value):
+        """Modify an arbitrary VTODO property and bump LAST-MODIFIED.
+
+        For datetime properties (DUE, DTSTART), value should be an iCal
+        datetime string like '20260315T120000Z'. For text properties
+        (SUMMARY, DESCRIPTION), value is a plain string.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier of the VTODO to update.
+            property_name: iCal property name (e.g. DUE, DTSTART, PRIORITY, DESCRIPTION).
+            value: New value as string.
+
+        Raises:
+            AssertionError: On any HTTP error.
+        """
+        raw = self.get_vtodo_raw(collection_url, uid)
+        cal = Calendar.from_ical(raw)
+        for component in cal.walk():
+            if component.name == 'VTODO':
+                datetime_props = {'DUE', 'DTSTART', 'COMPLETED'}
+                if property_name.upper() in datetime_props:
+                    from icalendar import vDatetime as vDt
+                    dt = datetime.strptime(value, '%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
+                    component[property_name] = vDt(dt)
+                elif property_name.upper() == 'PRIORITY':
+                    component[property_name] = int(value)
+                else:
+                    component[property_name] = value
+                component['LAST-MODIFIED'] = vDatetime(
+                    datetime.now(tz=timezone.utc) + timedelta(seconds=2)
+                )
+                break
+        updated = cal.to_ical().decode('utf-8')
+        url = f"{collection_url}{uid}.ics"
+        response = self._session.put(
+            url,
+            data=updated.encode('utf-8'),
+            headers={'Content-Type': 'text/calendar; charset=utf-8'},
+        )
+        self._check_response(response)
+
+    def remove_vtodo_property(self, collection_url, uid, property_name):
+        """Remove a property from a VTODO and bump LAST-MODIFIED.
+
+        Used for field clear tests: removing DUE, DTSTART, DESCRIPTION,
+        CATEGORIES, PRIORITY, or X-TASKWARRIOR-WAIT from a VTODO.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier of the VTODO.
+            property_name: iCal property name to remove.
+
+        Raises:
+            AssertionError: On any HTTP error.
+        """
+        raw = self.get_vtodo_raw(collection_url, uid)
+        cal = Calendar.from_ical(raw)
+        for component in cal.walk():
+            if component.name == 'VTODO':
+                if property_name in component:
+                    del component[property_name]
+                component['LAST-MODIFIED'] = vDatetime(
+                    datetime.now(tz=timezone.utc) + timedelta(seconds=2)
+                )
                 break
         updated = cal.to_ical().decode('utf-8')
         url = f"{collection_url}{uid}.ics"
@@ -508,4 +641,27 @@ class CalDAVLibrary:
                 f"VTODO {uid!r} property {property_name!r} mismatch:\n"
                 f"  Expected: {expected_value!r}\n"
                 f"  Actual:   {actual!r}"
+            )
+
+    def vtodo_should_not_have_property(self, collection_url, uid, property_name):
+        """Assert that a VTODO does NOT have the specified property.
+
+        Fetches the VTODO and parses it with the icalendar library. Raises
+        AssertionError if the property is found.
+
+        Args:
+            collection_url: Full URL of the CalDAV collection.
+            uid: Unique identifier of the VTODO.
+            property_name: Property name that should be absent (e.g. COMPLETED, CATEGORIES).
+
+        Raises:
+            AssertionError: If the property IS found on the VTODO.
+        """
+        raw = self.get_vtodo_raw(collection_url, uid)
+        component = self._get_vtodo_component(raw)
+        if property_name in component:
+            value = component[property_name]
+            raise AssertionError(
+                f"VTODO {uid!r} unexpectedly has property {property_name!r} "
+                f"with value {str(value)!r}"
             )
